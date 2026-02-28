@@ -1,0 +1,3 @@
+PORT=5000
+MONGO_URI=mongodb+srv://user:password@cluster.mongodb.net/tech-made-easy
+JWT_SECRET=super_secret_jwt_key_for_tech_made_easy_12345!
