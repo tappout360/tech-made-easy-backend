@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = function (req, res, next) {
+const auth = function (req, res, next) {
   // Get token from header
   const authHeader = req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -18,3 +18,19 @@ module.exports = function (req, res, next) {
     res.status(401).json({ msg: 'Token is not valid' });
   }
 };
+
+// HIPAA §164.308(a)(4) — Role-based access control
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({ msg: 'Authentication required' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ msg: `Access denied. Required role: ${roles.join(' or ')}` });
+    }
+    next();
+  };
+};
+
+module.exports = auth;
+module.exports.requireRole = requireRole;
