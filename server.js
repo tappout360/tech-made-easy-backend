@@ -54,6 +54,8 @@ app.use('/api/v1/audit',         require('./routes/audit'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
 app.use('/api/v1/sensors',       require('./routes/sensors'));
 app.use('/api/v1/quickbooks',    require('./routes/quickbooks'));
+app.use('/api/v1/maps',          require('./routes/maps'));
+app.use('/api/v1/calendar',      require('./routes/calendar'));
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {
