@@ -62,4 +62,44 @@ router.put('/read-all', auth, async (req, res) => {
   }
 });
 
+// @route    POST api/v1/notifications
+// @desc     Create a notification (message, alert, etc.)
+// @access   Private
+router.post('/', auth, async (req, res) => {
+  try {
+    const { type, title, message, threadId, toUserId, fromName, fromRole } = req.body;
+    const notif = new Notification({
+      userId: toUserId || req.user.id,
+      type: type || 'message',
+      title: title || 'New Message',
+      message: message || '',
+      threadId: threadId || 'dispatch',
+      fromUserId: req.user.id,
+      fromName: fromName || req.user.name || 'System',
+      fromRole: fromRole || req.user.role || 'SYSTEM',
+      read: false,
+    });
+    await notif.save();
+    res.status(201).json(notif);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route    POST api/v1/notifications/register-device
+// @desc     Register a mobile device for push notifications
+// @access   Private
+router.post('/register-device', auth, async (req, res) => {
+  try {
+    const { token, platform, deviceName } = req.body;
+    // Store push token — in production, save to User model or a PushDevice collection
+    console.log(`[Push] Device registered: ${platform} — ${deviceName} — token: ${token?.substring(0, 20)}...`);
+    res.json({ msg: 'Device registered', token: token?.substring(0, 20) });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
