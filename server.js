@@ -25,6 +25,7 @@ app.get('/api/v1/health', (req, res) => {
 
 // ── API Routes ──
 app.use('/api/v1/auth',          require('./routes/auth'));
+app.use('/api/v1/users',         require('./routes/users'));
 app.use('/api/v1/work-orders',   require('./routes/workOrders'));
 app.use('/api/v1/clients',       require('./routes/clients'));
 app.use('/api/v1/assets',        require('./routes/assets'));

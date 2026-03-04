@@ -56,11 +56,12 @@ async function seed() {
 
     // ── 2. Create Users ──
     const hashedPw = await bcrypt.hash('Admin123!', 10);
+    const ownerPw  = await bcrypt.hash('JakylieTechnical$$', 10);
 
     const users = await User.insertMany([
       {
         role: 'OWNER', name: 'Jason Mounts', email: 'jason@technical-made-easy.com',
-        password: hashedPw, companyId: null, active: true
+        password: ownerPw, companyId: null, active: true
       },
       {
         role: 'COMPANY', name: 'Rachel Kim', email: 'rachel@biomedicorp.com',
