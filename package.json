@@ -10,7 +10,12 @@
     "health": "node scripts/healthCheck.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["medical", "biomed", "hipaa", "cmms"],
+  "keywords": [
+    "medical",
+    "biomed",
+    "hipaa",
+    "cmms"
+  ],
   "author": "Technical Made Easy",
   "license": "ISC",
   "type": "commonjs",
@@ -19,6 +24,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.2"
   }
