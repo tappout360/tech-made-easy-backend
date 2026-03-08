@@ -31,17 +31,20 @@ const workOrderSchema = new mongoose.Schema({
   assignedTechName: { type: String, default: null },
   createdBy: { type: String, required: true },
   messages: [{
+    entryId: { type: String, default: () => `msg_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
     from: String,
     name: String,
     text: String,
     ts: Date
   }],
   procedures: [{
+    entryId: { type: String, default: () => `proc_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
     step: String,
     result: String,
     critical: Boolean
   }],
   testEquipment: [{
+    entryId: { type: String, default: () => `teq_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
     name: String,
     calibrationDate: String
   }],
@@ -51,6 +54,7 @@ const workOrderSchema = new mongoose.Schema({
     ratedAt: Date
   },
   timeEntries: [{
+    entryId: { type: String, default: () => `te_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
     techId: String,
     techName: String,
     type: { type: String }, // 'labor' | 'travel'
@@ -59,6 +63,32 @@ const workOrderSchema = new mongoose.Schema({
     duration: Number,
     billable: Boolean
   }],
+  partsUsed: [{
+    entryId: { type: String, default: () => `part_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
+    partId: String,
+    name: String,
+    sku: String,
+    qty: Number,
+    unitPrice: Number,
+    addedAt: Date
+  }],
+  signatures: [{
+    entryId: { type: String, default: () => `sig_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
+    role: String,
+    name: String,
+    data: String, // base64
+    signedAt: Date
+  }],
+  attachments: [{
+    entryId: { type: String, default: () => `att_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },
+    fileName: String,
+    fileType: String,
+    url: String,
+    uploadedAt: Date
+  }],
+  // ── Sync tracking ──
+  syncedFrom: { type: String, enum: ['web', 'mobile', 'api', null], default: null },
+  lastSyncedAt: { type: Date, default: null },
   sentToArchive: { type: Boolean, default: false }
 }, { timestamps: true });
 
