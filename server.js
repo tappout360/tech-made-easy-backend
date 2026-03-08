@@ -67,6 +67,7 @@ app.use('/api/v1/quickbooks',    require('./routes/quickbooks'));
 app.use('/api/v1/maps',          require('./routes/maps'));
 app.use('/api/v1/calendar',      require('./routes/calendar'));
 app.use('/api/v1/sync',          require('./routes/sync'));
+app.use('/api/v1/platform',      require('./routes/platform'));  // Platform Owner admin routes
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {

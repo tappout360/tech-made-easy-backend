@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  role: { type: String, required: true }, // 'OWNER', 'COMPANY', 'ADMIN', 'OFFICE', 'TECH', 'CLIENT'
+  role: { type: String, required: true }, // 'PLATFORM_OWNER', 'OWNER', 'COMPANY', 'ADMIN', 'OFFICE', 'TECH', 'CLIENT'
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -13,6 +13,12 @@ const userSchema = new mongoose.Schema({
   rating: { type: Number, default: 0 },
   clientCompany: { type: String, default: null },
   active: { type: Boolean, default: true },  // HIPAA §164.308(a)(3)(ii) — Access Termination
+  // PLATFORM OWNER — Jason Mounts supreme admin flag
+  platformOwner: { type: Boolean, default: false }, // Only 1 user should have this = true
+  // Emergency backup access code (hashed, used if primary auth fails)
+  emergencyAccessCode: { type: String, default: null },
+  // Company-level account number for strict data isolation (auto-generated)
+  companyAccountNumber: { type: String, default: null }, // e.g. 'TME-C-0001'
   preferences: { type: Object, default: {} },
   // HIPAA §164.308(a)(5)(ii)(D) — Password Management
   passwordChangedAt: { type: Date, default: Date.now },
