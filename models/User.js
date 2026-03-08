@@ -26,6 +26,11 @@ const userSchema = new mongoose.Schema({
   // Login lockout (persistent across server restarts)
   loginAttempts: { type: Number, default: 0 },
   lockUntil: { type: Date, default: null },
+  // Concurrent Session Management — HIPAA §164.312(d)
+  activeSessionId: { type: String, default: null },
+  activeSessionDevice: { type: String, default: null }, // 'web' or 'mobile'
+  lastLoginAt: { type: Date, default: null },
+  lastLoginIp: { type: String, default: null },
 }, { timestamps: true });
 
 // Password hashing middleware

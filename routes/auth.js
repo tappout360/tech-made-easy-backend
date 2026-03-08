@@ -16,14 +16,13 @@ const {
 // @access   Public
 // HIPAA §164.312(d) — Person/Entity Authentication
 router.post('/login', checkLoginLockout, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, deviceType } = req.body;
 
   try {
     let user = await User.findOne({ email });
 
     if (!user) {
       recordFailedLogin(email);
-      // Audit: failed login attempt — unknown user
       AuditLog.create({
         action: 'LOGIN_FAILED',
         userId: 'unknown',
@@ -57,7 +56,6 @@ router.post('/login', checkLoginLockout, async (req, res) => {
 
     if (!isMatch) {
       recordFailedLogin(email);
-      // Audit: failed login — wrong password
       AuditLog.create({
         action: 'LOGIN_FAILED',
         userId: user.id,
@@ -75,15 +73,51 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     // Success — clear lockout counter
     clearLoginAttempts(email);
 
-    // Generate unique session ID for tracking
+    // ── CONCURRENT SESSION MANAGEMENT ──
+    // Check for existing active session on another device
+    const device = deviceType || req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'web';
+    let sessionConflict = null;
+
+    if (user.activeSessionId && user.activeSessionDevice) {
+      // Another session is active — record the conflict
+      sessionConflict = {
+        previousDevice: user.activeSessionDevice,
+        previousLoginAt: user.lastLoginAt,
+        previousIp: user.lastLoginIp,
+        action: 'previous_session_invalidated',
+        message: `Your previous session on ${user.activeSessionDevice} has been signed out for security.`,
+      };
+
+      // Audit: session conflict
+      AuditLog.create({
+        action: 'SESSION_CONFLICT',
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        companyId: user.companyId,
+        targetType: 'authentication',
+        details: `Concurrent session detected. Previous: ${user.activeSessionDevice} (${user.lastLoginIp}). New: ${device} (${req.ip}). Previous session invalidated.`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        timestamp: new Date(),
+      }).catch(() => {});
+    }
+
+    // Generate unique session ID for this login
     const sessionId = generateSessionId();
+
+    // Update user with current session info
+    user.activeSessionId = sessionId;
+    user.activeSessionDevice = device;
+    user.lastLoginAt = new Date();
+    user.lastLoginIp = req.ip || req.connection?.remoteAddress;
+    await user.save();
 
     const payload = {
       user: {
         id: user.id,
         role: user.role,
         companyId: user.companyId,
-        sessionId, // Track session for audit trail
+        sessionId,
       }
     };
 
@@ -102,14 +136,14 @@ router.post('/login', checkLoginLockout, async (req, res) => {
           userRole: user.role,
           companyId: user.companyId,
           targetType: 'authentication',
-          details: `Successful login — ${email}`,
+          details: `Successful login — ${email} (${device})`,
           ipAddress: req.ip || req.connection?.remoteAddress,
           sessionId,
           timestamp: new Date(),
         }).catch(() => {});
 
         // Return matching structure to frontend's AuthContext
-        res.json({
+        const response = {
           token,
           sessionId,
           user: {
@@ -124,12 +158,68 @@ router.post('/login', checkLoginLockout, async (req, res) => {
             clientCompany: user.clientCompany,
             techSkill: user.techSkill
           }
-        });
+        };
+
+        // Include session conflict warning if another device was active
+        if (sessionConflict) {
+          response.sessionConflict = sessionConflict;
+        }
+
+        res.json(response);
       }
     );
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// @route    POST api/v1/auth/logout
+// @desc     Clear active session on logout
+// @access   Private
+router.post('/logout', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user) {
+      user.activeSessionId = null;
+      user.activeSessionDevice = null;
+      await user.save();
+
+      AuditLog.create({
+        action: 'LOGOUT',
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        companyId: user.companyId,
+        targetType: 'authentication',
+        details: `User logged out`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        sessionId: req.user.sessionId,
+        timestamp: new Date(),
+      }).catch(() => {});
+    }
+    res.json({ msg: 'Logged out successfully' });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// @route    GET api/v1/auth/session-check
+// @desc     Verify current session is still active (not invalidated by another login)
+// @access   Private
+router.get('/session-check', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('activeSessionId activeSessionDevice');
+    if (!user) return res.status(401).json({ valid: false, msg: 'User not found' });
+
+    const isValid = user.activeSessionId === req.user.sessionId;
+    res.json({
+      valid: isValid,
+      activeDevice: user.activeSessionDevice,
+      msg: isValid ? 'Session active' : 'Session invalidated — you were signed in on another device',
+    });
+  } catch (err) {
+    res.status(500).json({ valid: false, msg: 'Server error' });
   }
 });
 
