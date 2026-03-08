@@ -13,14 +13,21 @@ const userSchema = new mongoose.Schema({
   rating: { type: Number, default: 0 },
   clientCompany: { type: String, default: null },
   active: { type: Boolean, default: true },  // HIPAA §164.308(a)(3)(ii) — Access Termination
-  preferences: { type: Object, default: {} }
+  preferences: { type: Object, default: {} },
+  // HIPAA §164.308(a)(5)(ii)(D) — Password Management
+  passwordChangedAt: { type: Date, default: Date.now },
+  passwordExpiryDays: { type: Number, default: 90 }, // Configurable per company
+  // Login lockout (persistent across server restarts)
+  loginAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date, default: null },
 }, { timestamps: true });
 
 // Password hashing middleware
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(12); // Increased from 10 to 12 rounds for HIPAA
   this.password = await bcrypt.hash(this.password, salt);
+  this.passwordChangedAt = new Date(); // Track rotation
   next();
 });
 
