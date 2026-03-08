@@ -289,6 +289,139 @@ router.post('/change-password', auth, enforcePasswordPolicy, async (req, res) =>
   }
 });
 
+// ────────────────────────────────────────────────────────────────
+// FORGOT PASSWORD — Send email with reset link
+// POST /api/v1/auth/forgot-password
+// HIPAA: No PHI leaked — always returns 200 to prevent email enumeration
+// ────────────────────────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ msg: 'Email is required' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    
+    // Always return 200 regardless of whether user exists (anti-enumeration)
+    if (!user) {
+      return res.json({ msg: 'If an account exists, a reset link has been sent.' });
+    }
+
+    // Generate a 1-hour reset token
+    const resetToken = jwt.sign(
+      { userId: user._id, purpose: 'password-reset' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Build reset URL — use FRONTEND_URL env var or default
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    // Send email (plug in SendGrid, SES, or Nodemailer in production)
+    await sendPasswordResetEmail(user.email, user.name, resetUrl);
+
+    // Audit log
+    if (AuditLog) {
+      await AuditLog.create({
+        action: 'PASSWORD_RESET_REQUESTED',
+        userId: user._id,
+        details: { email: user.email, ip: req.ip },
+        timestamp: new Date(),
+      });
+    }
+
+    res.json({ msg: 'If an account exists, a reset link has been sent.' });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────
+// RESET PASSWORD — Validate token and set new password
+// POST /api/v1/auth/reset-password
+// HIPAA §164.312(d) — Person/Entity Authentication
+// ────────────────────────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ msg: 'Token and new password are required' });
+    }
+
+    // Validate token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      if (e.name === 'TokenExpiredError') {
+        return res.status(400).json({ msg: 'Reset link has expired. Please request a new one.' });
+      }
+      return res.status(400).json({ msg: 'Invalid reset link.' });
+    }
+
+    if (decoded.purpose !== 'password-reset') {
+      return res.status(400).json({ msg: 'Invalid reset token.' });
+    }
+
+    // Enforce password policy
+    if (newPassword.length < 12) {
+      return res.status(400).json({ msg: 'Password must be at least 12 characters.' });
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || 
+        !/[0-9]/.test(newPassword) || !/[^a-zA-Z0-9]/.test(newPassword)) {
+      return res.status(400).json({ msg: 'Password must include uppercase, lowercase, number, and special character.' });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ msg: 'User not found.' });
+
+    user.password = newPassword; // Pre-save hook auto-hashes
+    user.passwordChangedAt = new Date();
+    user.loginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    // Audit log
+    if (AuditLog) {
+      await AuditLog.create({
+        action: 'PASSWORD_RESET_COMPLETED',
+        userId: user._id,
+        details: { email: user.email, ip: req.ip, method: 'email-reset-link' },
+        timestamp: new Date(),
+      });
+    }
+
+    res.json({
+      msg: 'Password reset successfully ✅. You can now log in with your new password.',
+      passwordChangedAt: user.passwordChangedAt,
+    });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ── Email helper ─────────────────────────────────────────────
+// Stub — replace with real email service in production
+async function sendPasswordResetEmail(email, name, resetUrl) {
+  // Production: Use SendGrid, AWS SES, or Nodemailer
+  // Example with Nodemailer:
+  //   const transporter = nodemailer.createTransport({ ... });
+  //   await transporter.sendMail({
+  //     from: '"Technical Made Easy" <noreply@technicalmadeeasy.com>',
+  //     to: email,
+  //     subject: '🔐 Password Reset — Technical Made Easy',
+  //     html: `<p>Hi ${name},</p>
+  //            <p>Click the link below to reset your password:</p>
+  //            <a href="${resetUrl}">Reset My Password</a>
+  //            <p>This link expires in 1 hour.</p>
+  //            <p>— Technical Made Easy Security Team</p>`
+  //   });
+  console.log(`📧 PASSWORD RESET EMAIL (dev mode):\n  To: ${email}\n  Name: ${name}\n  Link: ${resetUrl}\n  (Wire SendGrid/SES in production)`);
+}
+
 module.exports = router;
+
 
 
