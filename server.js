@@ -47,8 +47,21 @@ app.use('/api/v1/auth', authLimiter);      // Strict rate limit on auth
 app.use('/api/v1', apiLimiter);            // General rate limit on all API
 app.use(logPHIAccess);                     // §164.312(b) — PHI access audit logging
 
+// ── API Response Caching Headers ──
+// Cache GET responses for 30s (reduces redundant DB queries under load)
+// Auth and audit routes are excluded for security
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.includes('/auth') && !req.path.includes('/audit')) {
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+  } else {
+    res.set('Cache-Control', 'no-store');
+  }
+  next();
+});
+
 // ── Health Check ──
 app.get('/api/v1/health', (req, res) => {
+  res.set('Cache-Control', 'no-cache'); // Always fresh
   res.json({
     status: 'ok',
     uptime: process.uptime(),
