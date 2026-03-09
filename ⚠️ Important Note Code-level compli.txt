@@ -1,0 +1,2 @@
+⚠️ Important Note: Code-level compliance is one piece. For full certification you'll also need: a BAA with your hosting provider (Railway, Render, AWS all offer HIPAA-eligible plans), employee training documentation, a risk assessment document, and a disaster recovery plan. These are administrative/organizational — not code. Happy to help document those when you're ready for live deployment.
+

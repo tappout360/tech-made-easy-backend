@@ -224,29 +224,159 @@ function generateSessionId() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 7. DATA SANITIZATION — Prevent NoSQL Injection
+// 7. DATA SANITIZATION — NoSQL Injection + XSS Prevention
+//    HIPAA §164.312(a) — Access Control / Input Integrity
+//    OWASP A03:2021 — Injection
 // ═══════════════════════════════════════════════════════════════════
-function sanitizeInput(req, res, next) {
-  const sanitize = (obj) => {
-    if (typeof obj !== 'object' || obj === null) return obj;
-    for (const key of Object.keys(obj)) {
-      if (key.startsWith('$')) {
-        delete obj[key]; // Remove MongoDB operator injection
-      } else if (typeof obj[key] === 'object') {
-        sanitize(obj[key]);
-      }
-    }
-    return obj;
-  };
 
-  if (req.body) sanitize(req.body);
-  if (req.query) sanitize(req.query);
-  if (req.params) sanitize(req.params);
+/**
+ * Strip dangerous HTML/script tags and XSS vectors from strings.
+ * Preserves safe text content while removing:
+ *   - <script>, <iframe>, <object>, <embed>, <form>, <style>, <link>, <meta> tags
+ *   - Inline event handlers (onclick, onerror, onload, etc.)
+ *   - javascript: and data:text/html URIs
+ *   - All remaining HTML tags (defense-in-depth)
+ */
+function stripDangerousTags(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    // Remove full <script>...</script> blocks (including content)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // Remove dangerous self-closing/open tags
+    .replace(/<\/?(?:script|iframe|object|embed|form|input|textarea|select|style|link|meta|base|applet)[^>]*>/gi, '')
+    // Remove inline event handlers: onclick="...", onerror='...', onload=...
+    .replace(/\s*on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '')
+    // Remove javascript: URIs
+    .replace(/javascript\s*:/gi, '')
+    // Remove data:text/html content URIs (XSS vector)
+    .replace(/data\s*:\s*text\/html/gi, '')
+    // Remove VBScript URIs (IE legacy XSS)
+    .replace(/vbscript\s*:/gi, '')
+    // Remove expression() CSS (IE XSS)
+    .replace(/expression\s*\(/gi, '')
+    // Strip all remaining HTML tags (defense-in-depth)
+    .replace(/<[^>]+>/g, '')
+    // Trim result
+    .trim();
+}
+
+/**
+ * Deep sanitize: remove MongoDB operators ($) and strip HTML/XSS from all strings.
+ */
+function deepSanitizeInput(obj) {
+  if (typeof obj === 'string') return stripDangerousTags(obj);
+  if (typeof obj !== 'object' || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(deepSanitizeInput);
+
+  for (const key of Object.keys(obj)) {
+    // Remove MongoDB operator injection ($gt, $ne, $regex, etc.)
+    if (key.startsWith('$')) {
+      delete obj[key];
+      continue;
+    }
+    if (typeof obj[key] === 'string') {
+      obj[key] = stripDangerousTags(obj[key]);
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      deepSanitizeInput(obj[key]);
+    }
+  }
+  return obj;
+}
+
+function sanitizeInput(req, res, next) {
+  if (req.body)   deepSanitizeInput(req.body);
+  if (req.query)  deepSanitizeInput(req.query);
+  if (req.params) deepSanitizeInput(req.params);
   next();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 8. HTTPS ENFORCEMENT — HIPAA §164.312(e)(1) Transmission Security
+// 8. RESPONSE SANITIZER — Prevent Secret/Token Leakage
+//    Strips sensitive fields from ALL API JSON responses.
+//    HIPAA §164.312(a)(1) — no internal secrets in output
+// ═══════════════════════════════════════════════════════════════════
+const SENSITIVE_FIELDS = new Set([
+  'password', 'passwordHash', 'hashedPassword',
+  'accessToken', 'refreshToken', 'tokenSecret',
+  'JWT_SECRET', 'MONGO_URI', 'QB_CLIENT_SECRET',
+  'GOOGLE_CLIENT_SECRET', 'GOOGLE_MAPS_KEY',
+  '__v',  // Mongoose version key (unnecessary exposure)
+]);
+
+function deepStripSecrets(obj) {
+  if (typeof obj !== 'object' || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(deepStripSecrets);
+
+  const cleaned = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_FIELDS.has(key)) continue; // Strip this field entirely
+    if (typeof value === 'object' && value !== null) {
+      cleaned[key] = deepStripSecrets(value);
+    } else {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
+function sanitizeResponse(req, res, next) {
+  const originalJson = res.json.bind(res);
+  res.json = function (data) {
+    // Only sanitize objects (not primitives)
+    if (typeof data === 'object' && data !== null) {
+      data = deepStripSecrets(
+        typeof data.toJSON === 'function' ? data.toJSON() : data
+      );
+    }
+    // In production, strip stack traces from errors
+    if (process.env.NODE_ENV === 'production' && data?.stack) {
+      delete data.stack;
+    }
+    return originalJson(data);
+  };
+  next();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 9. FIELD-LEVEL VALIDATION — Structured Input Validation
+//    Validates specific field formats before database writes.
+//    Call directly in route handlers for create/update operations.
+// ═══════════════════════════════════════════════════════════════════
+const FIELD_VALIDATORS = {
+  email:         { regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, msg: 'Invalid email format' },
+  phone:         { regex: /^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/, msg: 'Invalid phone format (expected: (555) 123-4567)' },
+  woNumber:      { regex: /^WO-\d{4}-\d{3,4}-\d{3,4}$/, msg: 'Invalid WO number format (expected: WO-YYYY-MMDD-NNNN)' },
+  accountNumber: { regex: /^[A-Za-z]{2,4}-\d{3,5}$/, msg: 'Invalid account number format (expected: XX-1234)' },
+  serialNumber:  { regex: /^[A-Za-z0-9\-_.]+$/, msg: 'Serial number contains invalid characters' },
+  qrTag:         { regex: /^[A-Za-z0-9]+$/, msg: 'QR tag must be alphanumeric' },
+};
+
+/**
+ * Validate specific fields in req.body.
+ * Usage: validateFields('email', 'phone')(req, res, next)
+ * Only validates fields that are PRESENT — does not enforce required.
+ */
+function validateFields(...fieldNames) {
+  return (req, res, next) => {
+    if (!req.body) return next();
+    const errors = [];
+    for (const field of fieldNames) {
+      const value = req.body[field];
+      if (value === undefined || value === null || value === '') continue; // Skip missing
+      const validator = FIELD_VALIDATORS[field];
+      if (validator && !validator.regex.test(String(value))) {
+        errors.push({ field, message: validator.msg, value: String(value).substring(0, 30) });
+      }
+    }
+    if (errors.length > 0) {
+      return res.status(400).json({ msg: 'Validation failed', errors });
+    }
+    next();
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 10. HTTPS ENFORCEMENT — HIPAA §164.312(e)(1) Transmission Security
 // ═══════════════════════════════════════════════════════════════════
 function enforceHTTPS(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
@@ -259,7 +389,7 @@ function enforceHTTPS(req, res, next) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 9. FDA 21 CFR Part 11 — Electronic Signature Validation
+// 11. FDA 21 CFR Part 11 — Electronic Signature Validation
 // Validates that e-signatures contain required fields
 // ═══════════════════════════════════════════════════════════════════
 function validateElectronicSignature(req, res, next) {
@@ -297,6 +427,10 @@ module.exports = {
   computeAuditHash,
   generateSessionId,
   sanitizeInput,
+  sanitizeResponse,
+  stripDangerousTags,
+  validateFields,
+  FIELD_VALIDATORS,
   enforceHTTPS,
   validateElectronicSignature,
 };

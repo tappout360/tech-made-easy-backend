@@ -55,8 +55,8 @@ async function seed() {
     console.log(`🏢 Company: ${company.name} (${companyId})`);
 
     // ── 2. Create Users ──
-    const hashedPw = await bcrypt.hash('Admin123!', 10);
-    const ownerPw  = await bcrypt.hash('JakylieTechnical$$', 10);
+    const hashedPw = await bcrypt.hash('TechnicalTeamFirst4388', 10);
+    const ownerPw  = await bcrypt.hash('TechnicalTeamFirst4388', 10);
 
     const users = await User.insertMany([
       {
@@ -270,13 +270,13 @@ async function seed() {
     console.log('  ✅ SEED COMPLETE');
     console.log('═══════════════════════════════════════');
     console.log(`  🏢 1 Company`);
-    console.log(`  👥 ${users.length} Users (pw: Admin123!)`);
+    console.log(`  👥 ${users.length} Users (pw: TechnicalTeamFirst4388)`);
     console.log(`  🏥 ${clients.length} Clients`);
     console.log(`  🔧 ${assets.length} Assets`);
     console.log(`  📋 ${workOrders.length} Work Orders`);
     console.log(`  📦 ${inventoryItems.length} Inventory Items`);
     console.log('═══════════════════════════════════════');
-    console.log('\nLogin accounts (all use password: Admin123!):');
+    console.log('\nLogin accounts (all use password: TechnicalTeamFirst4388):');
     users.forEach(u => console.log(`  ${u.role.padEnd(8)} → ${u.email}`));
     console.log('');
 

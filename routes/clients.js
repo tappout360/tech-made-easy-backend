@@ -91,4 +91,58 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/v1/clients/bulk-import
+// @desc    Bulk import clients from array (CSV parsed on frontend)
+// @access  Private (COMPANY, ADMIN, OWNER)
+router.post('/bulk-import', auth, async (req, res) => {
+  try {
+    if (!['COMPANY', 'ADMIN', 'OWNER'].includes(req.user.role)) {
+      return res.status(403).json({ msg: 'Not authorized for bulk import' });
+    }
+    const { clients } = req.body;
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return res.status(400).json({ msg: 'No clients provided' });
+    }
+    if (clients.length > 500) {
+      return res.status(400).json({ msg: 'Maximum 500 clients per batch' });
+    }
+
+    const results = { created: 0, skipped: 0, errors: [] };
+    for (const clientData of clients) {
+      try {
+        if (!clientData.name) {
+          results.errors.push(`Missing required field 'name' for entry`);
+          results.skipped++;
+          continue;
+        }
+        // Skip duplicates by account number if provided
+        if (clientData.accountNumber) {
+          const existing = await Client.findOne({ accountNumber: clientData.accountNumber });
+          if (existing) {
+            results.skipped++;
+            continue;
+          }
+        }
+        const client = new Client({
+          ...clientData,
+          companyId: clientData.companyId || req.user.companyId,
+        });
+        await client.save();
+        results.created++;
+      } catch (e) {
+        results.errors.push(`${clientData.name || 'unknown'}: ${e.message}`);
+        results.skipped++;
+      }
+    }
+
+    res.json({
+      msg: `Imported ${results.created} clients, skipped ${results.skipped}`,
+      ...results,
+    });
+  } catch (err) {
+    console.error('Client bulk import error:', err.message);
+    res.status(500).json({ msg: 'Bulk import failed' });
+  }
+});
+
 module.exports = router;

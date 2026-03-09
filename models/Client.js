@@ -43,7 +43,33 @@ const clientSchema = new mongoose.Schema({
       billing: Boolean,
       assets: Boolean
     }
-  }
+  },
+  // ── Contracts & SLA ──
+  contracts: [{
+    contractNumber: String,
+    type: { type: String, default: 'PM' },  // PM, Full-Service, Parts-Only, T&M
+    startDate: Date,
+    endDate: Date,
+    billingRate: { type: Number, default: 85 },
+    monthlyFee: { type: Number, default: 0 },
+    coveredEquipment: [String],  // Asset IDs covered
+    autoRenew: { type: Boolean, default: true },
+    status: { type: String, default: 'active' },  // active, expired, pending
+    notes: String,
+  }],
+  slaPolicy: {
+    criticalResponse: { type: Number, default: 2 },    // hours
+    criticalResolution: { type: Number, default: 8 },
+    highResponse: { type: Number, default: 4 },
+    highResolution: { type: Number, default: 24 },
+    normalResponse: { type: Number, default: 8 },
+    normalResolution: { type: Number, default: 72 },
+    lowResponse: { type: Number, default: 24 },
+    lowResolution: { type: Number, default: 168 },
+  },
+  coveredAssetCount: { type: Number, default: 0 },
+  healthScore: { type: Number, default: 100 },  // 0-100 client health
+  notes: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Client', clientSchema);

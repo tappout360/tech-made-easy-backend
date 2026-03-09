@@ -86,6 +86,16 @@ const workOrderSchema = new mongoose.Schema({
     url: String,
     uploadedAt: Date
   }],
+  // ── Billing & Invoice ──
+  invoiceNumber: { type: String, default: null },
+  invoicedAt: { type: Date, default: null },
+  paidAt: { type: Date, default: null },
+  billingRate: { type: Number, default: 0 },  // $/hr labor rate
+  taxRate: { type: Number, default: 0 },       // Tax percentage
+  invoiceTotal: { type: Number, default: 0 },
+  paymentStatus: { type: String, enum: ['unpaid', 'invoiced', 'paid', 'overdue', 'write-off', null], default: null },
+  paymentMethod: { type: String, default: null },
+  sentToClient: { type: Boolean, default: false },
   // ── Sync tracking ──
   syncedFrom: { type: String, enum: ['web', 'mobile', 'api', null], default: null },
   lastSyncedAt: { type: Date, default: null },

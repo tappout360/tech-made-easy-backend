@@ -67,7 +67,31 @@ const companySchema = new mongoose.Schema({
       active: { type: Boolean, default: true },
       secret: { type: String },
       createdAt: { type: Date, default: Date.now }
-    }]
+    }],
+    salesforce: {
+      connected: { type: Boolean, default: false },
+      instanceUrl: { type: String },
+      accessToken: { type: String },
+      refreshToken: { type: String }
+    },
+    sap: {
+      connected: { type: Boolean, default: false },
+      hostUrl: { type: String },
+      apiKey: { type: String },
+      clientCode: { type: String }
+    },
+    servicenow: {
+      connected: { type: Boolean, default: false },
+      instanceUrl: { type: String },
+      clientId: { type: String },
+      clientSecret: { type: String }
+    },
+    paylocity: {
+      connected: { type: Boolean, default: false },
+      clientId: { type: String },
+      clientSecret: { type: String },
+      companyId: { type: String }
+    }
   }
 }, { timestamps: true });
 

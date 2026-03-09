@@ -31,6 +31,8 @@ const userSchema = new mongoose.Schema({
   activeSessionDevice: { type: String, default: null }, // 'web' or 'mobile'
   lastLoginAt: { type: Date, default: null },
   lastLoginIp: { type: String, default: null },
+  // Tech WO Capacity — admin-configurable limit
+  maxActiveWOs: { type: Number, default: 5 },  // Max concurrent active WOs per tech
 }, { timestamps: true });
 
 // Password hashing middleware

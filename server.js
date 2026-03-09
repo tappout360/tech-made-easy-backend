@@ -4,12 +4,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const {
-  securityHeaders, enforceHTTPS, sanitizeInput,
+  securityHeaders, enforceHTTPS, sanitizeInput, sanitizeResponse,
   logPHIAccess, initHashChain,
 } = require('./middleware/hipaaCompliance');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+// Trust proxy if we are behind a reverse proxy (like Render/Railway/Heroku/Vercel)
+app.set('trust proxy', 1);
 
 // ── Rate Limiting — HIPAA §164.312(a) ──
 const authLimiter = rateLimit({
@@ -30,7 +32,6 @@ const apiLimiter = rateLimit({
 // ── HIPAA Security Middleware (applied FIRST) ──
 app.use(enforceHTTPS);               // §164.312(e)(1) — HTTPS in production
 app.use(securityHeaders);            // §164.312(e)(1) — Security headers
-app.use(sanitizeInput);              // NoSQL injection prevention
 
 // ── Standard Middleware ──
 app.use(cors({
@@ -38,6 +39,8 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' })); // Support large inventory imports
+app.use(sanitizeInput);              // NoSQL injection + XSS tag stripping (after body parse)
+app.use(sanitizeResponse);           // §164.312(a) — Strip secrets from all JSON responses
 app.use('/api/v1/auth', authLimiter);      // Strict rate limit on auth
 app.use('/api/v1', apiLimiter);            // General rate limit on all API
 app.use(logPHIAccess);                     // §164.312(b) — PHI access audit logging
@@ -67,6 +70,11 @@ app.use('/api/v1/quickbooks',    require('./routes/quickbooks'));
 app.use('/api/v1/maps',          require('./routes/maps'));
 app.use('/api/v1/calendar',      require('./routes/calendar'));
 app.use('/api/v1/sync',          require('./routes/sync'));
+app.use('/api/v1/billing',       require('./routes/billing'));
+app.use('/api/v1/salesforce',    require('./routes/salesforce'));
+app.use('/api/v1/sap',           require('./routes/sap'));
+app.use('/api/v1/servicenow',    require('./routes/servicenow'));
+app.use('/api/v1/paylocity',     require('./routes/paylocity'));
 app.use('/api/v1/platform',      require('./routes/platform'));  // Platform Owner admin routes
 
 // ── Global Error Handler ──

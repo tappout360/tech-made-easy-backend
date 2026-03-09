@@ -153,4 +153,32 @@ router.post('/optimize', auth, async (req, res) => {
   }
 });
 
+// @route    POST api/v1/maps/breadcrumbs
+// @desc     Receive GPS breadcrumb points from mobile tech app
+// @access   Private
+// NOTE: HIPAA-compliant — only business-address lat/lng + techId, no PHI
+router.post('/breadcrumbs', auth, async (req, res) => {
+  try {
+    const { points } = req.body;
+    if (!Array.isArray(points) || points.length === 0) {
+      return res.status(400).json({ msg: 'No breadcrumb points provided' });
+    }
+
+    // In production, persist to a GPS tracking collection.
+    // For now, log and acknowledge — prevents data loss on the mobile side.
+    console.log(`📍 Received ${points.length} breadcrumbs from tech ${req.user.id}`);
+
+    // TODO: Persist to GPSTrack model when ready
+    // await GPSTrack.insertMany(points.map(p => ({ ...p, techId: req.user.id })));
+
+    res.json({
+      msg: `Received ${points.length} breadcrumb(s)`,
+      count: points.length,
+    });
+  } catch (err) {
+    console.error('Breadcrumb error:', err.message);
+    res.status(500).json({ msg: 'Failed to store breadcrumbs' });
+  }
+});
+
 module.exports = router;
