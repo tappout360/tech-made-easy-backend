@@ -19,7 +19,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   const { email, password, deviceType } = req.body;
 
   try {
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
 
     if (!user) {
       recordFailedLogin(email);
@@ -75,7 +75,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
 
     // ── CONCURRENT SESSION MANAGEMENT ──
     // Check for existing active session on another device
-    const device = deviceType || req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'web';
+    const device = deviceType || (req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'web');
     let sessionConflict = null;
 
     if (user.activeSessionId && user.activeSessionDevice) {
