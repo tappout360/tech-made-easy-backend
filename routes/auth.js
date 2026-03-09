@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/auth');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, generateFingerprint } = require('../middleware/auth');
 const {
   checkLoginLockout, recordFailedLogin, clearLoginAttempts,
   enforcePasswordPolicy, generateSessionId,
@@ -112,13 +112,16 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     user.lastLoginIp = req.ip || req.connection?.remoteAddress;
     await user.save();
 
+    const fingerprint = generateFingerprint(req);
+
     const payload = {
       user: {
         id: user.id,
         role: user.role,
         companyId: user.companyId,
         sessionId,
-      }
+      },
+      fingerprint,  // HIPAA §164.312(d) — Device-bound token
     };
 
     jwt.sign(
@@ -171,6 +174,73 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// @route    POST api/v1/auth/refresh
+// @desc     Refresh JWT token — issues new token with fresh expiry
+// @access   Private (requires valid or recently-expired token)
+// HIPAA §164.312(d) — Session continuity with re-authentication
+router.post('/refresh', async (req, res) => {
+  const authHeader = req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ msg: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    // Accept tokens that expired within the last 30 minutes (grace period)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { ignoreExpiration: true });
+
+    // Check if token expired more than 30 min ago — reject
+    if (decoded.exp) {
+      const expiredAgo = Math.floor(Date.now() / 1000) - decoded.exp;
+      if (expiredAgo > 1800) { // 30 minutes grace
+        return res.status(401).json({ msg: 'Token too old to refresh. Please log in again.' });
+      }
+    }
+
+    // Verify session fingerprint
+    const currentFingerprint = generateFingerprint(req);
+    if (decoded.fingerprint && decoded.fingerprint !== currentFingerprint) {
+      return res.status(401).json({ msg: 'Session fingerprint mismatch. Please log in again.' });
+    }
+
+    // Verify user still exists and is active
+    const user = await User.findById(decoded.user.id).select('-password');
+    if (!user || user.active === false) {
+      return res.status(401).json({ msg: 'Account not found or deactivated.' });
+    }
+
+    // Issue fresh token
+    const newPayload = {
+      user: {
+        id: user.id,
+        role: user.role,
+        companyId: user.companyId,
+        sessionId: decoded.user.sessionId,
+      },
+      fingerprint: currentFingerprint,
+    };
+
+    const newToken = jwt.sign(newPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+    AuditLog.create({
+      action: 'TOKEN_REFRESHED',
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      companyId: user.companyId,
+      targetType: 'authentication',
+      details: `Token refreshed for ${user.email}`,
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      timestamp: new Date(),
+    }).catch(() => {});
+
+    res.json({ token: newToken });
+  } catch (err) {
+    return res.status(401).json({ msg: 'Invalid token. Please log in again.' });
   }
 });
 

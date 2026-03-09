@@ -22,6 +22,18 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+/* ── Session Fingerprint Generator ─────────────────────────────── */
+// Creates a hash of the user's device characteristics for token binding
+// HIPAA §164.312(d) — Person/Entity Authentication hardening
+function generateFingerprint(req) {
+  const raw = [
+    req.headers['user-agent'] || '',
+    req.headers['accept-language'] || '',
+  ].join('|');
+  return crypto.createHash('sha256').update(raw).digest('hex').substring(0, 16);
+}
 
 /* ── JWT Authentication ────────────────────────────────────────── */
 const auth = function (req, res, next) {
@@ -35,8 +47,20 @@ const auth = function (req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded.user;
+
+    // Session fingerprint verification — reject stolen tokens
+    if (decoded.fingerprint) {
+      const currentFingerprint = generateFingerprint(req);
+      if (decoded.fingerprint !== currentFingerprint) {
+        return res.status(401).json({ msg: 'Session fingerprint mismatch. Please log in again.' });
+      }
+    }
+
     next();
   } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ msg: 'Token expired', code: 'TOKEN_EXPIRED' });
+    }
     res.status(401).json({ msg: 'Token is not valid' });
   }
 };
@@ -138,3 +162,4 @@ module.exports.requireRole = requireRole;
 module.exports.enforceDataIsolation = enforceDataIsolation;
 module.exports.requirePlatformOwner = requirePlatformOwner;
 module.exports.requireCompanyOwner = requireCompanyOwner;
+module.exports.generateFingerprint = generateFingerprint;
