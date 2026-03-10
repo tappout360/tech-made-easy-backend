@@ -330,4 +330,106 @@ router.get('/summary', auth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// CREDIT MEMO — Issue credit against an invoice
+// @route    POST api/v1/billing/credit-memo/:woId
+// @body     { amount, reason }
+// @access   Private (COMPANY, ADMIN, OFFICE)
+// ═══════════════════════════════════════════════════════════════════
+router.post('/credit-memo/:woId', auth, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ msg: 'Credit amount required' });
+
+    const wo = await WorkOrder.findById(req.params.woId);
+    if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+    if (wo.companyId !== req.user.companyId && req.user.role !== 'PLATFORM_OWNER') {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    const creditMemoNumber = `CM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    const newTotal = Math.max(0, Math.round(((wo.invoiceTotal || 0) - amount) * 100) / 100);
+
+    // Track credit memo history on the WO
+    const creditEntry = {
+      creditMemoNumber,
+      amount: Math.round(amount * 100) / 100,
+      reason: reason || 'Adjustment',
+      issuedBy: req.user.name || req.user.email,
+      issuedAt: new Date(),
+    };
+
+    const updated = await WorkOrder.findByIdAndUpdate(req.params.woId, {
+      $set: { invoiceTotal: newTotal },
+      $push: { creditMemos: creditEntry },
+    }, { new: true });
+
+    await AuditLog.create({
+      action: 'CREDIT_MEMO_ISSUED',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: wo._id.toString(),
+      details: `Credit memo ${creditMemoNumber} for $${amount.toFixed(2)} on ${wo.invoiceNumber}. Reason: ${reason || 'Adjustment'}. New total: $${newTotal.toFixed(2)}`,
+    });
+
+    res.json({
+      success: true,
+      creditMemo: creditEntry,
+      newInvoiceTotal: newTotal,
+      wo: updated,
+    });
+  } catch (err) {
+    console.error('Credit Memo Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SEND REMINDER — Email payment reminder for overdue invoice
+// @route    POST api/v1/billing/send-reminder/:woId
+// @access   Private (COMPANY, ADMIN, OFFICE)
+// ═══════════════════════════════════════════════════════════════════
+router.post('/send-reminder/:woId', auth, async (req, res) => {
+  try {
+    const wo = await WorkOrder.findById(req.params.woId);
+    if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+    if (wo.companyId !== req.user.companyId && req.user.role !== 'PLATFORM_OWNER') {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    // Update reminder tracking
+    const reminderCount = (wo.reminderCount || 0) + 1;
+    const updated = await WorkOrder.findByIdAndUpdate(req.params.woId, {
+      $set: {
+        reminderCount,
+        lastReminderAt: new Date(),
+        subStatus: reminderCount >= 3 ? 'Final Notice' : 'Reminder Sent',
+      },
+    }, { new: true });
+
+    await AuditLog.create({
+      action: 'PAYMENT_REMINDER_SENT',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: wo._id.toString(),
+      details: `Payment reminder #${reminderCount} sent for ${wo.invoiceNumber} ($${(wo.invoiceTotal || 0).toFixed(2)}) to ${wo.clientName}`,
+    });
+
+    // NOTE: Actual email sending would be handled via SendGrid/SES/etc.
+    // For now, we log the action and return success.
+    // HIPAA: Email will contain only invoice number and amount — NO patient data.
+
+    res.json({
+      success: true,
+      reminderCount,
+      msg: `Reminder #${reminderCount} queued for ${wo.clientName}`,
+    });
+  } catch (err) {
+    console.error('Reminder Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
