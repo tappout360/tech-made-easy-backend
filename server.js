@@ -110,6 +110,7 @@ app.use('/api/v1/servicenow',    require('./routes/servicenow'));
 app.use('/api/v1/paylocity',     require('./routes/paylocity'));
 app.use('/api/v1/platform',      require('./routes/platform'));  // Platform Owner admin routes
 app.use('/api/v1/stripe',        require('./routes/stripe'));    // Stripe payment processing
+app.use('/api/v1/docusign',      require('./routes/docusign'));  // DocuSign e-signatures
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {

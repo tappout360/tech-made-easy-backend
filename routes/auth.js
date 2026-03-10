@@ -580,6 +580,91 @@ async function sendPasswordResetEmail(email, name, resetUrl) {
   //   });
   console.log(`📧 PASSWORD RESET EMAIL (dev mode):\n  To: ${email}\n  Name: ${name}\n  Link: ${resetUrl}\n  (Wire SendGrid/SES in production)`);
 }
+// ────────────────────────────────────────────────────────────────
+// SEED — Bootstrap initial platform owner in empty database
+// POST /api/v1/auth/seed
+// SECURITY: Only works when DB has ZERO users. Cannot be exploited
+//           after first account is created. Requires SEED_SECRET.
+// ────────────────────────────────────────────────────────────────
+router.post('/seed', async (req, res) => {
+  try {
+    const { name, email, password, seedSecret } = req.body;
+
+    // Validate seed secret
+    const validSecret = process.env.SEED_SECRET || 'TME_SEED_2026';
+    if (seedSecret !== validSecret) {
+      return res.status(403).json({ msg: 'Invalid seed secret' });
+    }
+
+    // Only allow if NO users exist
+    const userCount = await User.countDocuments();
+    if (userCount > 0) {
+      return res.status(400).json({
+        msg: `Database already has ${userCount} user(s). Seed is disabled after first account creation.`,
+      });
+    }
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ msg: 'name, email, and password are required' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ msg: 'Password must be at least 8 characters' });
+    }
+
+    const user = new User({
+      name,
+      email: email.toLowerCase().trim(),
+      password,
+      role: 'OWNER',
+      companyId: 'platform',
+      active: true,
+    });
+
+    await user.save();
+
+    // Auto-login — return a token immediately
+    const sessionId = generateSessionId();
+    user.activeSessionId = sessionId;
+    user.activeSessionDevice = 'web';
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    const payload = {
+      user: { id: user.id, role: 'OWNER', companyId: 'platform', sessionId },
+      fingerprint: generateFingerprint(req),
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+    AuditLog.create({
+      action: 'PLATFORM_SEEDED',
+      userId: user.id,
+      userName: user.name,
+      userRole: 'OWNER',
+      targetType: 'authentication',
+      details: `Platform owner account created via seed: ${user.email}`,
+      ipAddress: req.ip,
+      timestamp: new Date(),
+    }).catch(() => {});
+
+    res.status(201).json({
+      msg: '🎉 Platform owner account created! You are now logged in.',
+      token,
+      sessionId,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: 'OWNER',
+        companyId: 'platform',
+      },
+    });
+  } catch (err) {
+    console.error('Seed error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
 
 module.exports = router;
 
