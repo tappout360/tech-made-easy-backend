@@ -6,6 +6,7 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/auth');
 const { requireRole, generateFingerprint } = require('../middleware/auth');
+const { sendMfaEmail: sendMfaEmailService, sendNotification } = require('../services/emailService');
 const {
   checkLoginLockout, recordFailedLogin, clearLoginAttempts,
   enforcePasswordPolicy, generateSessionId,
@@ -174,6 +175,37 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// @route    POST api/v1/auth/send-mfa
+// @desc     Send MFA verification code via email
+// @access   Public (called by frontend during login flow)
+// HIPAA §164.312(d) — Multi-Factor Authentication
+router.post('/send-mfa', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ msg: 'Email and code are required' });
+    }
+
+    // Validate code format (6 digits)
+    if (!/^\d{6}$/.test(code)) {
+      return res.status(400).json({ msg: 'Invalid code format' });
+    }
+
+    const result = await sendMfaEmailService(email, code);
+
+    if (!result.success) {
+      console.warn(`[MFA] Email send failed for ${email}:`, result.error);
+      return res.status(500).json({ msg: 'Failed to send MFA email', error: result.error });
+    }
+
+    res.json({ msg: 'MFA code sent', id: result.id });
+  } catch (err) {
+    console.error('[MFA] Send error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -565,20 +597,21 @@ router.post('/reset-password', async (req, res) => {
 // ── Email helper ─────────────────────────────────────────────
 // Stub — replace with real email service in production
 async function sendPasswordResetEmail(email, name, resetUrl) {
-  // Production: Use SendGrid, AWS SES, or Nodemailer
-  // Example with Nodemailer:
-  //   const transporter = nodemailer.createTransport({ ... });
-  //   await transporter.sendMail({
-  //     from: '"Technical Made Easy" <noreply@technicalmadeeasy.com>',
-  //     to: email,
-  //     subject: '🔐 Password Reset — Technical Made Easy',
-  //     html: `<p>Hi ${name},</p>
-  //            <p>Click the link below to reset your password:</p>
-  //            <a href="${resetUrl}">Reset My Password</a>
-  //            <p>This link expires in 1 hour.</p>
-  //            <p>— Technical Made Easy Security Team</p>`
-  //   });
-  console.log(`📧 PASSWORD RESET EMAIL (dev mode):\n  To: ${email}\n  Name: ${name}\n  Link: ${resetUrl}\n  (Wire SendGrid/SES in production)`);
+  const { sendNotification } = require('../services/emailService');
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;">
+      <h2 style="color:#00e5ff;">🔐 Password Reset — Technical Made Easy</h2>
+      <p>Hi ${name},</p>
+      <p>Click the link below to reset your password:</p>
+      <a href="${resetUrl}" style="display:inline-block;background:#00e5ff;color:#000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Reset My Password</a>
+      <p style="color:#999;font-size:12px;margin-top:16px;">This link expires in 1 hour. If you did not request this, ignore this email.</p>
+      <p style="color:#666;">— Technical Made Easy Security Team</p>
+    </div>
+  `;
+  const result = await sendNotification(email, '🔐 Password Reset — Technical Made Easy', html);
+  if (!result.success) {
+    console.log(`📧 PASSWORD RESET EMAIL (fallback):\n  To: ${email}\n  Name: ${name}\n  Link: ${resetUrl}`);
+  }
 }
 // ────────────────────────────────────────────────────────────────
 // SEED — Bootstrap initial platform owner in empty database
