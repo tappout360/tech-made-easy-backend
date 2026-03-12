@@ -279,4 +279,121 @@ router.get('/audit', auth, requirePlatformOwner, async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════════════════════════════
+   INTEGRATION ASSIGNMENT — Platform Owner controls what each company sees
+   ═══════════════════════════════════════════════════════════════════ */
+
+let Company;
+try { Company = require('../models/Company'); } catch(e) { Company = null; }
+
+const ALL_INTEGRATIONS = [
+  { key: 'quickbooks',      label: 'QuickBooks',       category: 'finance',     tier: 'starter' },
+  { key: 'stripe',          label: 'Stripe Payments',  category: 'finance',     tier: 'starter' },
+  { key: 'google-calendar', label: 'Google Calendar',  category: 'productivity', tier: 'starter' },
+  { key: 'google-maps',     label: 'Google Maps',      category: 'productivity', tier: 'starter' },
+  { key: 'slack',           label: 'Slack',            category: 'communication', tier: 'starter' },
+  { key: 'zoom',            label: 'Zoom',             category: 'communication', tier: 'starter' },
+  { key: 'docusign',        label: 'DocuSign',         category: 'documents',   tier: 'professional' },
+  { key: 'zapier',          label: 'Zapier',           category: 'automation',  tier: 'professional' },
+  { key: 'webhooks',        label: 'Webhooks',         category: 'automation',  tier: 'professional' },
+  { key: 'salesforce',      label: 'Salesforce',       category: 'crm',         tier: 'enterprise' },
+  { key: 'sap',             label: 'SAP ERP',          category: 'erp',         tier: 'enterprise' },
+  { key: 'servicenow',      label: 'ServiceNow',       category: 'itsm',        tier: 'enterprise' },
+  { key: 'paylocity',       label: 'Paylocity',        category: 'hr',          tier: 'enterprise' },
+  { key: 'p21-erp',         label: 'P21 ERP (Epicor)', category: 'erp',         tier: 'enterprise' },
+  { key: 'epic',            label: 'Epic EHR (FHIR)',  category: 'healthcare',  tier: 'enterprise' },
+  { key: 'hl7-fhir',        label: 'HL7 FHIR Generic', category: 'healthcare',  tier: 'enterprise' },
+  { key: 'bacnet-iot',      label: 'BACnet IoT',       category: 'iot',         tier: 'enterprise' },
+  { key: 'teams',           label: 'Microsoft Teams',  category: 'communication', tier: 'professional' },
+];
+
+/* ── GET /api/v1/platform/integrations — List all available integrations ── */
+router.get('/integrations', auth, requirePlatformOwner, async (req, res) => {
+  res.json({ integrations: ALL_INTEGRATIONS, total: ALL_INTEGRATIONS.length });
+});
+
+/* ── GET /api/v1/platform/companies/:id/integrations — Get a company's enabled integrations ── */
+router.get('/companies/:id/integrations', auth, requirePlatformOwner, async (req, res) => {
+  try {
+    if (!Company) return res.status(503).json({ msg: 'Company model not available' });
+
+    const company = await Company.findById(req.params.id).select('name enabledIntegrations onboarding');
+    if (!company) return res.status(404).json({ msg: 'Company not found' });
+
+    res.json({
+      companyId: company._id,
+      companyName: company.name,
+      enabledIntegrations: company.enabledIntegrations || [],
+      onboarding: company.onboarding || {},
+      available: ALL_INTEGRATIONS,
+    });
+  } catch(err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
+/* ── PUT /api/v1/platform/companies/:id/integrations — Assign integrations to a company ── */
+router.put('/companies/:id/integrations', auth, requirePlatformOwner, async (req, res) => {
+  try {
+    if (!Company) return res.status(503).json({ msg: 'Company model not available' });
+
+    const { enabledIntegrations } = req.body;
+    if (!Array.isArray(enabledIntegrations)) {
+      return res.status(400).json({ msg: 'enabledIntegrations must be an array of integration keys' });
+    }
+
+    // Validate keys
+    const validKeys = ALL_INTEGRATIONS.map(i => i.key);
+    const invalid = enabledIntegrations.filter(k => !validKeys.includes(k));
+    if (invalid.length > 0) {
+      return res.status(400).json({ msg: `Invalid integration keys: ${invalid.join(', ')}` });
+    }
+
+    const company = await Company.findByIdAndUpdate(
+      req.params.id,
+      { $set: { enabledIntegrations } },
+      { new: true }
+    );
+    if (!company) return res.status(404).json({ msg: 'Company not found' });
+
+    await logPlatformAction('ASSIGN_INTEGRATIONS', null, {
+      companyId: company._id, companyName: company.name,
+      integrations: enabledIntegrations, count: enabledIntegrations.length,
+    }, req);
+
+    res.json({
+      msg: `${enabledIntegrations.length} integrations assigned to ${company.name}`,
+      companyId: company._id,
+      enabledIntegrations: company.enabledIntegrations,
+    });
+  } catch(err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
+/* ── PUT /api/v1/platform/companies/:id/onboarding — Update company onboarding status ── */
+router.put('/companies/:id/onboarding', auth, requirePlatformOwner, async (req, res) => {
+  try {
+    if (!Company) return res.status(503).json({ msg: 'Company model not available' });
+
+    const updates = {};
+    const fields = ['companyInfo', 'dataImported', 'teamInvited', 'clientsAdded', 'inventorySetup', 'firstWO', 'tourCompleted'];
+    for (const f of fields) {
+      if (req.body[f] !== undefined) updates[`onboarding.${f}`] = req.body[f];
+    }
+
+    // Auto-set completedAt if all done
+    if (fields.every(f => req.body[f] === true)) {
+      updates['onboarding.completedAt'] = new Date();
+    }
+
+    const company = await Company.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
+    if (!company) return res.status(404).json({ msg: 'Company not found' });
+
+    res.json({ msg: 'Onboarding updated', onboarding: company.onboarding });
+  } catch(err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;

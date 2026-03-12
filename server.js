@@ -109,7 +109,7 @@ app.get('/api/v1/public-health', (req, res) => {
       purchaseOrders: 'Full PO workflow with approval chain and auto-stock update',
       vendorManagement: 'Vendor contacts, terms, certifications, performance tracking',
       assetHealth: 'Predictive 0-100 health scoring — 6 weighted factors',
-      integrations: ['QuickBooks', 'Stripe', 'Google Calendar', 'Google Maps', 'Slack', 'Zoom', 'DocuSign', 'Salesforce', 'SAP', 'ServiceNow', 'P21 ERP', 'Paylocity', 'BACnet IoT', 'HL7 FHIR', 'Zapier'],
+      integrations: ['QuickBooks', 'Stripe', 'Google Calendar', 'Google Maps', 'Slack', 'Zoom', 'DocuSign', 'Salesforce', 'SAP', 'ServiceNow', 'P21 ERP', 'Paylocity', 'BACnet IoT', 'HL7 FHIR', 'Epic EHR', 'Zapier'],
       ai: 'Butler AI v2.1 — 300+ equipment types, predictive health, skill matching, auto-dispatch',
       roles: 7,
       languages: 6,
@@ -169,6 +169,8 @@ app.use('/api/v1/purchase-orders', require('./routes/purchaseOrders')); // PO wo
 app.use('/api/v1/vendors',       require('./routes/vendors'));   // Vendor management
 app.use('/api/v1/analytics',     require('./routes/analytics')); // BI-level reporting
 app.use('/api/v1/webhooks',      require('./routes/webhooks'));  // Zapier/custom integrations
+app.use('/api/v1/epic',          require('./routes/epic'));      // Epic EHR FHIR R4
+app.use('/api/v1/import',        require('./routes/import'));    // Bulk data import
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {
