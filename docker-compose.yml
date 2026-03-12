@@ -1,0 +1,90 @@
+# Docker Compose — Technical Made Easy
+# Development & Staging Environment
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose logs -f api    # Follow API logs
+#   docker compose down           # Stop all services
+#
+# Production: Use docker-compose.prod.yml with secrets management
+
+services:
+  # ── MongoDB ──
+  mongo:
+    image: mongo:7
+    container_name: tme-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: tme_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-dev_password_change_me}
+      MONGO_INITDB_DATABASE: technicalmadeeasy
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis (Session Store + Socket.io Adapter) ──
+  redis:
+    image: redis:7-alpine
+    container_name: tme-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-dev_redis_pass}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis_pass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Backend API ──
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tme-api
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      MONGO_URI: mongodb://tme_admin:${MONGO_PASSWORD:-dev_password_change_me}@mongo:27017/technicalmadeeasy?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_pass}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5000/api/v1/health').then(r => process.exit(r.ok ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Monitoring: Uptime Kuma ──
+  # Lightweight, self-hosted monitoring for API health + SSL cert expiry
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: tme-monitor
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime_data:/app/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  redis_data:
+  uptime_data:

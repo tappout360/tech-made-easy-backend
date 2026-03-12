@@ -2,9 +2,14 @@
 
 > **Express.js + MongoDB REST API** powering the Technical Made Easy work order management platform. HIPAA-compliant, multi-tenant, production-ready.
 
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](https://mongodb.com)
+[![HIPAA](https://img.shields.io/badge/HIPAA-Compliant-00897B?logo=shield&logoColor=white)](#-security-deep-dive)
+[![Security Scan](https://img.shields.io/badge/Security_Scan-PASSED-brightgreen?logo=checkmarx&logoColor=white)](SECURITY.md)
+[![Coverage](https://img.shields.io/badge/Coverage-60%25+-yellowgreen?logo=jest&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Socket.io](https://img.shields.io/badge/Socket.io-Rooms-010101?logo=socketdotio&logoColor=white)](services/socketService.js)
 [![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
 ---
@@ -110,7 +115,7 @@ graph LR
 ## 🔌 Real-Time Updates
 
 > **Current**: Polling-based updates via REST API with 30s caching  
-> **Planned**: Socket.io integration for live dispatch board updates, real-time WO status changes, and instant messaging. Redis adapter planned for horizontal scaling.
+> **Ready**: Socket.io with per-company room isolation (`services/socketService.js`). JWT-authenticated connections, staff-only rooms, client sub-rooms, and real-time WO/dispatch/messaging events. Redis adapter documented for horizontal scaling.
 
 ---
 
@@ -174,10 +179,28 @@ Import [`postman_collection.json`](postman_collection.json) into Postman for rea
 │   └── SensorReading.js # IoT sensor data schema
 ├── routes/             # 22 route modules (see API Endpoints)
 ├── services/
-│   └── emailService.js # Resend email service
+│   ├── emailService.js # Resend email service
+│   └── socketService.js # Socket.io real-time (per-company rooms)
 ├── scripts/
 │   ├── seed.js         # Database seeding
-│   └── healthCheck.js  # Health check utility
+│   ├── healthCheck.js  # Health check utility
+│   └── securityScan.js # Pre-deployment security checker
+├── tools/              # Non-core utilities
+│   ├── generateSBOM.js # CycloneDX SBOM generator
+│   └── securityScan.js # Security scan (also in scripts/)
+├── tests/
+│   └── load/load-test.js # k6 load testing script
+├── docs/
+│   ├── PRE_DEPLOYMENT_TESTING_PLAN.md
+│   ├── THREAT_MODEL.md
+│   ├── POST_MARKET_CYBERSECURITY_PLAN.md
+│   ├── MULTI_TENANT_ARCHITECTURE.md
+│   ├── TYPESCRIPT_MIGRATION_PLAN.md
+│   ├── LOAD_TEST_RESULTS.md
+│   └── sbom.json
+├── docker-compose.yml  # MongoDB + Redis + API + Uptime Kuma
+├── Dockerfile          # Production container (Node 22 Alpine)
+├── SECURITY.md         # CVD policy + BAA + scan results
 ├── __tests__/          # Jest test suites
 └── postman_collection.json  # Postman API collection
 ```
@@ -216,11 +239,13 @@ STRIPE_SECRET_KEY=sk_xxxxxxxxxxxx
 
 ### Available Scripts
 ```bash
-npm start       # Production server
-npm run dev     # Dev server with auto-reload
-npm run seed    # Seed database with sample data
-npm run health  # Run health check
-npm test        # Run test suite
+npm start             # Production server
+npm run dev           # Dev server with auto-reload
+npm run seed          # Seed database with sample data
+npm run health        # Run health check
+npm test              # Run test suite
+npm run security-scan # Pre-deployment security checks
+npm run sbom          # Generate Software Bill of Materials
 ```
 
 ---
@@ -230,8 +255,8 @@ npm test        # Run test suite
 | Phase | Features | Status |
 |-------|----------|--------|
 | **Alpha** | REST API, JWT auth, HIPAA middleware, multi-tenant | ✅ Complete |
-| **Beta** | Socket.io real-time, Docker Compose, Artillery load tests | 🔄 Planned |
-| **v1.0** | Redis adapter, BullMQ job queue, Sentry monitoring | 📋 Planned |
+| **Beta** | Socket.io rooms, Docker Compose, k6 load tests, SECURITY.md (BAA) | ✅ Complete |
+| **v1.0** | Redis adapter, BullMQ job queue, Uptime Kuma monitoring, TypeScript migration | 📋 Planned |
 
 ---
 
