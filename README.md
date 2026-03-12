@@ -13,7 +13,7 @@
 
 This is the backend API for [Technical Made Easy](https://github.com/tappout360/technical-made-easy), a HIPAA-compliant work order management SaaS platform. It provides RESTful endpoints for authentication, company management, work orders, inventory, billing, and more.
 
-**Live API**: Hosted on [Render](https://render.com)
+**Live API**: Hosted on [Render](https://render.com) — [Health Check](https://tech-made-easy-backend.onrender.com/api/v1/health)
 
 ---
 
