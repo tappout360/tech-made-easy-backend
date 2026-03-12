@@ -93,22 +93,31 @@ app.get('/api/v1/public-health', (req, res) => {
   res.set('Cache-Control', 'public, max-age=60');
   res.json({
     platform: 'Technical Made Easy',
-    version: '1.0.0',
+    version: '2.5.0',
     status: 'operational',
     uptime: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`,
     timestamp: new Date().toISOString(),
     capabilities: {
+      workOrderEngine: '22 features — SLA timers, recurring WOs, templates, bulk ops, failure codes, GPS check-in, photo before/after',
       authentication: '3-Factor MFA + JWT + 15-min auto-logoff',
       encryption: 'AES-256-GCM at rest, TLS 1.3 in transit',
-      compliance: ['HIPAA', 'FDA 21 CFR Part 11', 'IEC 62304', 'ISO 13485'],
+      compliance: ['HIPAA', 'FDA 21 CFR Part 11', 'Joint Commission', 'CMS', 'OSHA', 'NFPA 99', 'IEC 62304', 'ISO 13485'],
+      regulatoryTemplates: '10 pre-built inspection checklists (TJC, CMS, OSHA, FDA, NFPA)',
       auditTrail: 'SHA-256 hash chain — 50+ audit points, tamper-evident',
       realTime: 'Socket.io with per-company room isolation',
-      integrations: ['QuickBooks', 'Stripe', 'Google Calendar', 'Google Maps', 'Slack', 'Zoom', 'DocuSign', 'Zapier'],
-      ai: 'Butler AI v2.1 — equipment diagnostics, training mode, security filter',
+      analytics: '6 BI reporting endpoints (asset health, downtime cost, failure Pareto, tech scorecard, PM compliance, capabilities)',
+      purchaseOrders: 'Full PO workflow with approval chain and auto-stock update',
+      vendorManagement: 'Vendor contacts, terms, certifications, performance tracking',
+      assetHealth: 'Predictive 0-100 health scoring — 6 weighted factors',
+      integrations: ['QuickBooks', 'Stripe', 'Google Calendar', 'Google Maps', 'Slack', 'Zoom', 'DocuSign', 'Salesforce', 'SAP', 'ServiceNow', 'P21 ERP', 'Paylocity', 'BACnet IoT', 'HL7 FHIR', 'Zapier'],
+      ai: 'Butler AI v2.1 — 300+ equipment types, predictive health, skill matching, auto-dispatch',
+      roles: 7,
+      languages: 6,
     },
     demo: {
       frontend: 'https://technical-made-easy.vercel.app',
       credentials: { email: 'demo@technicalmadeeasy.com', password: 'Demo123!', note: 'Read-only demo account' },
+      analyticsEndpoint: '/api/v1/analytics/capabilities',
     },
     security: {
       securityHeaders: 20,
@@ -125,7 +134,7 @@ app.get('/api/v1/public-health', (req, res) => {
     links: {
       github: 'https://github.com/tappout360/tech-made-easy-backend',
       security: '/.well-known/security.txt',
-      docs: '/api/v1/public-health',
+      analytics: '/api/v1/analytics/capabilities',
     },
   });
 });
@@ -156,6 +165,9 @@ app.use('/api/v1/paylocity',     require('./routes/paylocity'));
 app.use('/api/v1/platform',      require('./routes/platform'));  // Platform Owner admin routes
 app.use('/api/v1/stripe',        require('./routes/stripe'));    // Stripe payment processing
 app.use('/api/v1/docusign',      require('./routes/docusign'));  // DocuSign e-signatures
+app.use('/api/v1/purchase-orders', require('./routes/purchaseOrders')); // PO workflow
+app.use('/api/v1/vendors',       require('./routes/vendors'));   // Vendor management
+app.use('/api/v1/analytics',     require('./routes/analytics')); // BI-level reporting
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {

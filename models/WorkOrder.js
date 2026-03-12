@@ -191,6 +191,22 @@ const workOrderSchema = new mongoose.Schema({
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // FAILURE CODES & ROOT CAUSE ANALYSIS (RCM)
+  // ═══════════════════════════════════════════════════════════════
+  failureCode: { type: String, default: null },  // e.g. 'ELEC-001', 'MECH-003', 'SOFT-002'
+  failureCategory: {
+    type: String,
+    enum: ['Electrical', 'Mechanical', 'Software', 'Hydraulic', 'Pneumatic',
+           'Operator Error', 'Wear & Tear', 'Calibration', 'Environmental',
+           'Design Defect', 'Unknown', null],
+    default: null,
+  },
+  rootCause: { type: String, default: null },
+  correctiveAction: { type: String, default: null },
+  preventiveAction: { type: String, default: null },
+  failureSeverity: { type: String, enum: ['minor', 'moderate', 'major', 'critical', null], default: null },
+
+  // ═══════════════════════════════════════════════════════════════
   // CUSTOM FIELDS — Per-company extensibility
   // ═══════════════════════════════════════════════════════════════
   customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
