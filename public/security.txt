@@ -1,0 +1,10 @@
+# https://securitytxt.org/ — RFC 9116
+# Technical Made Easy — Coordinated Vulnerability Disclosure
+
+Contact: mailto:security@technical-made-easy.com
+Preferred-Languages: en
+Expires: 2027-03-12T00:00:00.000Z
+Encryption: https://www.technical-made-easy.com/.well-known/pgp-key.txt
+Acknowledgments: https://www.technical-made-easy.com/security/thanks
+Policy: https://github.com/tappout360/tech-made-easy-backend/blob/main/SECURITY.md
+Canonical: https://www.technical-made-easy.com/.well-known/security.txt

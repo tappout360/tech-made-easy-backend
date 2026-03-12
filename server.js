@@ -88,6 +88,9 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
+// ── Coordinated Vulnerability Disclosure — RFC 9116 ──
+app.use('/.well-known', express.static(require('path').join(__dirname, 'public')));
+
 // ── API Routes ──
 app.use('/api/v1/auth',          require('./routes/auth'));
 app.use('/api/v1/users',         require('./routes/users'));
