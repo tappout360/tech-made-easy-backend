@@ -18,7 +18,28 @@
 
 This is the backend API for [Technical Made Easy](https://github.com/tappout360/technical-made-easy), a HIPAA-compliant work order management SaaS platform. It provides RESTful endpoints for authentication, company management, work orders, inventory, billing, and more.
 
-**Live API**: Hosted on [Render](https://render.com) — [Health Check](https://tech-made-easy-backend.onrender.com/api/v1/health)
+**Live API**: [Health Check](https://tech-made-easy-backend.onrender.com/api/v1/health) · [Public Demo](https://tech-made-easy-backend.onrender.com/api/v1/public-health)
+
+### 🎯 Quick Demo
+
+| | |
+|---|---|
+| **Frontend** | [technical-made-easy.vercel.app](https://technical-made-easy.vercel.app) |
+| **Demo Creds** | `demo@technicalmadeeasy.com` / `Demo123!` (read-only) |
+| **Public API** | `GET /api/v1/public-health` — platform capabilities, no auth needed |
+
+### 📸 Platform Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/dashboard.png" alt="Dashboard" width="400"/><br/><b>Platform Control Center</b></td>
+    <td><img src="docs/screenshots/butler-ai.png" alt="Butler AI" width="400"/><br/><b>Butler AI + Zoom Training</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/work-orders.png" alt="Work Orders" width="400"/><br/><b>Technician Work Orders</b></td>
+    <td><img src="docs/screenshots/landing-page.png" alt="Landing" width="400"/><br/><b>Landing Page</b></td>
+  </tr>
+</table>
 
 ---
 
