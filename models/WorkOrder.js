@@ -106,7 +106,94 @@ const workOrderSchema = new mongoose.Schema({
   // ── Sync tracking ──
   syncedFrom: { type: String, enum: ['web', 'mobile', 'api', null], default: null },
   lastSyncedAt: { type: Date, default: null },
-  sentToArchive: { type: Boolean, default: false }
+  sentToArchive: { type: Boolean, default: false },
+
+  // ═══════════════════════════════════════════════════════════════
+  // SLA TRACKING — Service Level Agreement timers
+  // ═══════════════════════════════════════════════════════════════
+  sla: {
+    deadline: { type: Date, default: null },        // Auto-calculated from priority
+    responseDeadline: { type: Date, default: null }, // Time to first tech response
+    breached: { type: Boolean, default: false },     // True if deadline passed without completion
+    respondedAt: { type: Date, default: null },      // When tech first acknowledged
+    resolvedAt: { type: Date, default: null },       // When WO marked Complete
+    pausedAt: { type: Date, default: null },         // SLA pause (e.g., waiting for parts)
+    totalPausedMs: { type: Number, default: 0 },     // Total paused duration
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // RECURRING WO / AUTO-PM SCHEDULING
+  // ═══════════════════════════════════════════════════════════════
+  recurrence: {
+    enabled: { type: Boolean, default: false },
+    frequency: { type: String, enum: ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semiannual', 'annual', null], default: null },
+    dayOfWeek: { type: Number, default: null },      // 0=Sun, 1=Mon, etc.
+    dayOfMonth: { type: Number, default: null },     // 1-31
+    nextDueDate: { type: Date, default: null },
+    lastGeneratedAt: { type: Date, default: null },
+    parentWoId: { type: String, default: null },     // Original template WO
+    generatedCount: { type: Number, default: 0 },
+    autoAssignTechId: { type: String, default: null }, // Auto-assign same tech
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // WO TEMPLATES — Save/load pre-filled configurations
+  // ═══════════════════════════════════════════════════════════════
+  isTemplate: { type: Boolean, default: false },      // If true, this WO is a reusable template
+  templateName: { type: String, default: null },      // "Annual Sterilizer PM", "MRI Chiller Check"
+  templateCategory: { type: String, default: null },  // "PM", "Repair", "Install", "Inspection"
+  createdFromTemplate: { type: String, default: null }, // Template WO ID this was created from
+
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITY ESCALATION — Auto-escalate if unassigned
+  // ═══════════════════════════════════════════════════════════════
+  escalation: {
+    level: { type: Number, default: 0 },             // 0=none, 1=office, 2=admin, 3=owner
+    lastEscalatedAt: { type: Date, default: null },
+    escalationHistory: [{
+      fromLevel: Number,
+      toLevel: Number,
+      reason: String,
+      escalatedAt: { type: Date, default: Date.now },
+    }],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // MTTR / MTBF — Equipment Downtime Tracking
+  // ═══════════════════════════════════════════════════════════════
+  downtime: {
+    reportedAt: { type: Date, default: null },       // When equipment went down
+    restoredAt: { type: Date, default: null },       // When equipment returned to service
+    mttrMinutes: { type: Number, default: null },    // Mean Time To Repair (auto-calculated)
+    downtimeCategory: { type: String, enum: ['planned', 'unplanned', 'emergency', null], default: null },
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // GPS CHECK-IN / CHECK-OUT
+  // ═══════════════════════════════════════════════════════════════
+  geoCheckin: {
+    arrivedAt: { type: Date, default: null },
+    arrivedLat: { type: Number, default: null },
+    arrivedLng: { type: Number, default: null },
+    departedAt: { type: Date, default: null },
+    departedLat: { type: Number, default: null },
+    departedLng: { type: Number, default: null },
+    onSiteMinutes: { type: Number, default: null },  // Auto-calculated
+    travelMinutes: { type: Number, default: null },
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // PHOTO BEFORE / AFTER
+  // ═══════════════════════════════════════════════════════════════
+  photos: {
+    before: [{ url: String, caption: String, takenAt: { type: Date, default: Date.now } }],
+    after:  [{ url: String, caption: String, takenAt: { type: Date, default: Date.now } }],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // CUSTOM FIELDS — Per-company extensibility
+  // ═══════════════════════════════════════════════════════════════
+  customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
 }, { timestamps: true });
 
 module.exports = mongoose.model('WorkOrder', workOrderSchema);

@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const WorkOrder = require('../models/WorkOrder');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const { calculateSLA, checkSLABreach, calculateNextRecurrence } = require('../services/slaService');
 
 // @route    GET api/v1/work-orders
 // @desc     Get all work orders for a company
@@ -41,6 +42,15 @@ router.post('/', auth, async (req, res) => {
     const woData = { ...req.body, companyId: req.user.companyId };
     if (!woData.createdBy) woData.createdBy = req.user.id;
 
+    // Auto-calculate SLA deadlines based on priority
+    const priority = (woData.priority || 'normal').toLowerCase();
+    woData.sla = calculateSLA(priority === 'emergency' || woData.emergency ? 'emergency' : priority);
+
+    // Auto-set downtime tracking for repair WOs
+    if (woData.woType === 'Repair' || woData.woType === 'Emergency') {
+      woData.downtime = { reportedAt: new Date(), downtimeCategory: woData.emergency ? 'emergency' : 'unplanned' };
+    }
+
     const wo = await WorkOrder.create(woData);
 
     await AuditLog.create({
@@ -49,7 +59,7 @@ router.post('/', auth, async (req, res) => {
       companyId: req.user.companyId,
       targetType: 'workOrder',
       targetId: wo._id.toString(),
-      details: `Work order ${wo.woNumber} created. Type: ${wo.woType || wo.type}`,
+      details: `Work order ${wo.woNumber} created. Type: ${wo.woType || wo.type}. SLA deadline: ${wo.sla?.deadline?.toISOString() || 'none'}`,
     });
 
     res.status(201).json(wo);
@@ -135,6 +145,7 @@ router.put('/:id/assign', auth, async (req, res) => {
         assignedTechName: techName || tech.name,
         status: 'Active',
         subStatus: 'Dispatched',
+        'sla.respondedAt': new Date(), // SLA first-response timestamp
       }
     }, { new: true });
 
@@ -589,6 +600,151 @@ router.delete('/:id/crew/:techId', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Remove crew error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// WO TEMPLATES — Save and create from reusable templates
+// ═══════════════════════════════════════════════════════════════════
+
+// @route    GET api/v1/work-orders/templates
+// @desc     Get all WO templates for a company
+router.get('/templates', auth, async (req, res) => {
+  try {
+    const templates = await WorkOrder.find({
+      companyId: req.user.companyId,
+      isTemplate: true,
+    }).select('templateName templateCategory woType clientName model skill procedures priority recurrence').sort({ templateName: 1 });
+    res.json(templates);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route    POST api/v1/work-orders/from-template/:templateId
+// @desc     Create a new WO from a saved template
+router.post('/from-template/:templateId', auth, async (req, res) => {
+  try {
+    const template = await WorkOrder.findById(req.params.templateId);
+    if (!template || !template.isTemplate) {
+      return res.status(404).json({ msg: 'Template not found' });
+    }
+
+    // Copy template fields but generate new WO number and reset status
+    const woData = {
+      woNumber: `WO-${Date.now().toString(36).toUpperCase()}`,
+      type: template.type,
+      formType: template.formType,
+      companyId: req.user.companyId,
+      clientId: req.body.clientId || template.clientId,
+      clientName: req.body.clientName || template.clientName,
+      model: template.model,
+      serialNumber: req.body.serialNumber || template.serialNumber,
+      skill: template.skill,
+      woType: template.woType,
+      priority: template.priority,
+      site: req.body.site || template.site,
+      building: req.body.building || template.building,
+      location: req.body.location || template.location,
+      customerIssue: template.customerIssue,
+      procedures: template.procedures,
+      createdBy: req.user.id,
+      createdFromTemplate: req.params.templateId,
+      status: 'Active',
+      subStatus: 'Unscheduled',
+    };
+
+    // Auto-calculate SLA
+    const priority = (woData.priority || 'normal').toLowerCase();
+    woData.sla = calculateSLA(priority);
+
+    const wo = await WorkOrder.create(woData);
+
+    await AuditLog.create({
+      action: 'WO_FROM_TEMPLATE',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: wo._id.toString(),
+      details: `${wo.woNumber} created from template "${template.templateName}"`,
+    });
+
+    res.status(201).json(wo);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SLA PAUSE / RESUME — Pause SLA when waiting for parts, etc.
+// ═══════════════════════════════════════════════════════════════════
+router.put('/:id/sla-pause', auth, async (req, res) => {
+  try {
+    const wo = await WorkOrder.findById(req.params.id);
+    if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+
+    if (wo.sla?.pausedAt) {
+      // Resume — calculate paused duration and add to total
+      const pausedDuration = Date.now() - new Date(wo.sla.pausedAt).getTime();
+      await WorkOrder.findByIdAndUpdate(req.params.id, {
+        $set: { 'sla.pausedAt': null },
+        $inc: { 'sla.totalPausedMs': pausedDuration },
+      });
+      res.json({ msg: 'SLA resumed', pausedDurationMs: pausedDuration });
+    } else {
+      // Pause
+      await WorkOrder.findByIdAndUpdate(req.params.id, {
+        $set: { 'sla.pausedAt': new Date() },
+      });
+      res.json({ msg: 'SLA paused', reason: req.body.reason || 'Waiting for parts' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// BULK STATUS UPDATE — Batch operations on multiple WOs
+// ═══════════════════════════════════════════════════════════════════
+router.put('/bulk/status', auth, async (req, res) => {
+  try {
+    const { woIds, status, subStatus, assignedTechId, assignedTechName } = req.body;
+    if (!woIds || !Array.isArray(woIds) || woIds.length === 0) {
+      return res.status(400).json({ msg: 'woIds array is required' });
+    }
+    if (woIds.length > 50) {
+      return res.status(400).json({ msg: 'Maximum 50 WOs per bulk operation' });
+    }
+
+    const update = {};
+    if (status) update.status = status;
+    if (subStatus) update.subStatus = subStatus;
+    if (assignedTechId) {
+      update.assignedTechId = assignedTechId;
+      update.assignedTechName = assignedTechName;
+    }
+
+    const result = await WorkOrder.updateMany(
+      { _id: { $in: woIds }, companyId: req.user.companyId },
+      { $set: update }
+    );
+
+    await AuditLog.create({
+      action: 'WO_BULK_UPDATE',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: woIds.join(','),
+      details: `Bulk update ${result.modifiedCount} WOs: ${JSON.stringify(update)}`,
+    });
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (err) {
+    console.error(err.message);
     res.status(500).send('Server Error');
   }
 });

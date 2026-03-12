@@ -33,6 +33,16 @@ const userSchema = new mongoose.Schema({
   lastLoginIp: { type: String, default: null },
   // Tech WO Capacity — admin-configurable limit
   maxActiveWOs: { type: Number, default: 5 },  // Max concurrent active WOs per tech
+  // ── Technician Skills & Certifications ──
+  skills: [{ type: String }],  // ['MRI', 'CT', 'Ultrasound', 'Sterilizer', 'X-ray']
+  certifications: [{
+    name: { type: String },       // 'CBET', 'CRES', 'CLES', 'OEM MRI'
+    issuer: { type: String },
+    expiresAt: { type: Date },
+    verified: { type: Boolean, default: false },
+  }],
+  specialties: [{ type: String }],  // ['Imaging', 'Life Support', 'Surgical', 'Dental']
+  phone: { type: String, default: null },
 }, { timestamps: true });
 
 // Password hashing middleware
