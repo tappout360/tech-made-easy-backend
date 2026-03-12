@@ -4,6 +4,11 @@ const companySchema = new mongoose.Schema({
   name: { type: String, required: true },
   status: { type: String, default: 'pending' }, // pending, active, suspended, archived
   ownerId: { type: String, required: true },
+  industry: {
+    type: String,
+    enum: ['service', 'hospital', 'plumbing', 'electrical', 'automotive', 'construction', 'general'],
+    default: 'service'
+  },
   companySettings: {
     displayName: { type: String },
     tagline: { type: String },

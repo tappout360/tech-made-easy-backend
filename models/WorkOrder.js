@@ -29,6 +29,13 @@ const workOrderSchema = new mongoose.Schema({
   poNumber: { type: String, default: '' },
   assignedTechId: { type: String, default: null },
   assignedTechName: { type: String, default: null },
+  // ── Multi-Tech Crew (for installs / team jobs) ──
+  additionalTechs: [{
+    techId: { type: String, required: true },
+    techName: { type: String, required: true },
+    addedBy: { type: String },
+    addedAt: { type: Date, default: Date.now }
+  }],
   createdBy: { type: String, required: true },
   messages: [{
     entryId: { type: String, default: () => `msg_${Date.now()}_${Math.random().toString(36).slice(2,8)}` },

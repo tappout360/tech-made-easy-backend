@@ -14,9 +14,12 @@ router.get('/', auth, async (req, res) => {
     if (req.user.role !== 'OWNER' && req.user.role !== 'PLATFORM_OWNER') {
       query.companyId = req.user.companyId;
     }
-    // TECH users: only see their assigned WOs
+    // TECH users: see WOs where they are lead tech OR on the crew
     if (req.user.role === 'TECH') {
-      query.assignedTechId = req.user.id;
+      query.$or = [
+        { assignedTechId: req.user.id },
+        { 'additionalTechs.techId': req.user.id }
+      ];
     }
     // CLIENT users: only see their client WOs
     if (req.user.role === 'CLIENT') {
@@ -468,6 +471,124 @@ router.get('/suggest-tech/:id', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Suggest tech error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CREW MANAGEMENT — Multi-tech assignment for installs / team jobs
+// ═══════════════════════════════════════════════════════════════════
+
+// @route    PUT api/v1/work-orders/:id/crew
+// @desc     Add a technician to the WO crew
+// @access   Private (lead tech, COMPANY, ADMIN, OFFICE)
+router.put('/:id/crew', auth, async (req, res) => {
+  try {
+    const { techId, techName } = req.body;
+    if (!techId) return res.status(400).json({ msg: 'techId is required' });
+
+    // 1. Load the WO
+    const wo = await WorkOrder.findById(req.params.id);
+    if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+
+    // 2. Permission: only lead tech, COMPANY, ADMIN, OFFICE, OWNER
+    const isLeadTech = req.user.role === 'TECH' && wo.assignedTechId === req.user.id;
+    const isManager = ['COMPANY', 'ADMIN', 'OFFICE', 'OWNER', 'PLATFORM_OWNER'].includes(req.user.role);
+    if (!isLeadTech && !isManager) {
+      return res.status(403).json({ msg: 'Only the lead tech or management can add crew members' });
+    }
+
+    // 3. Verify the tech exists and is same company
+    const tech = await User.findById(techId);
+    if (!tech || tech.role !== 'TECH') {
+      return res.status(400).json({ msg: 'Invalid technician' });
+    }
+    if (tech.companyId !== req.user.companyId && req.user.role !== 'OWNER' && req.user.role !== 'PLATFORM_OWNER') {
+      return res.status(403).json({ msg: 'Cannot add a tech from another company' });
+    }
+
+    // 4. Prevent duplicates — can't add lead tech or already-added tech
+    if (wo.assignedTechId === techId) {
+      return res.status(409).json({ msg: `${tech.name} is already the lead tech on this WO` });
+    }
+    const alreadyOnCrew = (wo.additionalTechs || []).some(t => t.techId === techId);
+    if (alreadyOnCrew) {
+      return res.status(409).json({ msg: `${tech.name} is already on the crew` });
+    }
+
+    // 5. Add to crew
+    const crewEntry = {
+      techId,
+      techName: techName || tech.name,
+      addedBy: req.user.id,
+      addedAt: new Date()
+    };
+
+    const updated = await WorkOrder.findByIdAndUpdate(req.params.id, {
+      $push: { additionalTechs: crewEntry }
+    }, { new: true });
+
+    await AuditLog.create({
+      action: 'WO_CREW_ADDED',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: wo._id.toString(),
+      details: `${tech.name} added to crew on ${wo.woNumber} by ${req.user.id}`,
+    });
+
+    res.json({
+      success: true,
+      msg: `${tech.name} added to crew`,
+      wo: updated,
+    });
+  } catch (err) {
+    console.error('Add crew error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route    DELETE api/v1/work-orders/:id/crew/:techId
+// @desc     Remove a technician from the WO crew
+// @access   Private (lead tech, COMPANY, ADMIN, OFFICE)
+router.delete('/:id/crew/:techId', auth, async (req, res) => {
+  try {
+    const wo = await WorkOrder.findById(req.params.id);
+    if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+
+    // Permission: only lead tech, COMPANY, ADMIN, OFFICE, OWNER
+    const isLeadTech = req.user.role === 'TECH' && wo.assignedTechId === req.user.id;
+    const isManager = ['COMPANY', 'ADMIN', 'OFFICE', 'OWNER', 'PLATFORM_OWNER'].includes(req.user.role);
+    if (!isLeadTech && !isManager) {
+      return res.status(403).json({ msg: 'Only the lead tech or management can remove crew members' });
+    }
+
+    // Find the tech being removed (for audit log name)
+    const removedTech = (wo.additionalTechs || []).find(t => t.techId === req.params.techId);
+    if (!removedTech) {
+      return res.status(404).json({ msg: 'Tech not found on crew' });
+    }
+
+    const updated = await WorkOrder.findByIdAndUpdate(req.params.id, {
+      $pull: { additionalTechs: { techId: req.params.techId } }
+    }, { new: true });
+
+    await AuditLog.create({
+      action: 'WO_CREW_REMOVED',
+      userId: req.user.id,
+      companyId: req.user.companyId,
+      targetType: 'workOrder',
+      targetId: wo._id.toString(),
+      details: `${removedTech.techName} removed from crew on ${wo.woNumber} by ${req.user.id}`,
+    });
+
+    res.json({
+      success: true,
+      msg: `${removedTech.techName} removed from crew`,
+      wo: updated,
+    });
+  } catch (err) {
+    console.error('Remove crew error:', err.message);
     res.status(500).send('Server Error');
   }
 });
