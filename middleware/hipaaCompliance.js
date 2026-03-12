@@ -55,6 +55,11 @@ function securityHeaders(req, res, next) {
   res.setHeader('Expires', '0');
   // Remove server fingerprint
   res.removeHeader('X-Powered-By');
+  // Expect-CT for certificate transparency monitoring
+  res.setHeader('Expect-CT', 'max-age=86400, enforce');
+  // Cross-Origin policies
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 }
 
