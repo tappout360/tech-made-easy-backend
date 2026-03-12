@@ -1,0 +1,360 @@
+{
+  "info": {
+    "name": "Technical Made Easy API",
+    "description": "REST API for Technical Made Easy — HIPAA-compliant work order management platform.\n\nBase URL: https://tech-made-easy-backend.onrender.com/api/v1\n\nSet the {{baseUrl}} variable in your environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://tech-made-easy-backend.onrender.com/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "description": "Returns server status, uptime, and MongoDB connection state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"role\": \"TECH\",\n  \"companyId\": \"c1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "description": "Returns JWT token. Save to {{token}} variable."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Returns the authenticated user profile. Requires Bearer token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/:id"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/users/:id",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"role\": \"ADMIN\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/companies"
+          }
+        },
+        {
+          "name": "Create Company",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/companies",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Corp\",\n  \"industry\": \"hospital\",\n  \"contactEmail\": \"admin@testcorp.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Company",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/companies/:id",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"industry\": \"hospital\",\n  \"companySettings\": { \"displayName\": \"Updated Corp\" }\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Company Application",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/companies/apply",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"New Health Corp\",\n  \"contactName\": \"Jane Doe\",\n  \"contactEmail\": \"jane@newhealthcorp.com\",\n  \"industryType\": \"hospital\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Work Orders",
+      "item": [
+        {
+          "name": "List Work Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/work-orders"
+          }
+        },
+        {
+          "name": "Create Work Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/work-orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"woType\": \"Corrective\",\n  \"clientName\": \"Riverside Medical\",\n  \"clientId\": \"cl1\",\n  \"site\": \"Main Campus\",\n  \"location\": \"ICU Room 301\",\n  \"model\": \"Ventilator V-500\",\n  \"customerIssue\": \"Device not powering on\",\n  \"priority\": \"High\",\n  \"emergency\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Work Order",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/work-orders/:id",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Active\",\n  \"assignedTechId\": \"u6\",\n  \"assignedTechName\": \"Carlos Rivera\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Work Order by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/work-orders/:id"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "List Clients",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/clients"
+          }
+        },
+        {
+          "name": "Create Client",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/clients",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Metro Hospital\",\n  \"contactEmail\": \"admin@metrohospital.com\",\n  \"accountNumber\": \"ACC-00500\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "item": [
+        {
+          "name": "List Assets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/assets"
+          }
+        },
+        {
+          "name": "Create Asset",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/assets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Ventilator V-500\",\n  \"manufacturer\": \"GE Healthcare\",\n  \"serialNumber\": \"SN-2024-001\",\n  \"department\": \"ICU\",\n  \"status\": \"operational\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "List Inventory",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory"
+          }
+        },
+        {
+          "name": "Add Inventory Item",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/inventory",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partName\": \"O2 Sensor\",\n  \"partNumber\": \"GE-O2-400\",\n  \"quantity\": 25,\n  \"minStock\": 5,\n  \"unitCost\": 145.00\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit Log",
+      "item": [
+        {
+          "name": "Get Audit Entries",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/audit",
+            "description": "Returns recent audit log entries. HIPAA §164.312(b) compliance."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/notifications"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sensors (IoT)",
+      "item": [
+        {
+          "name": "Get Sensor Readings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sensors"
+          }
+        },
+        {
+          "name": "Submit Sensor Reading",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sensors",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sensorId\": \"sensor-001\",\n  \"type\": \"temperature\",\n  \"value\": 72.5,\n  \"unit\": \"F\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing & Stripe",
+      "item": [
+        {
+          "name": "Billing Overview",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/billing"
+          }
+        },
+        {
+          "name": "Create Stripe Checkout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/stripe/create-checkout",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"professional\",\n  \"companyId\": \"c1\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Platform Admin",
+      "item": [
+        {
+          "name": "Platform Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/platform/stats",
+            "description": "Platform Owner only — returns system-wide metrics."
+          }
+        }
+      ]
+    }
+  ]
+}
