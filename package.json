@@ -9,7 +9,8 @@
     "seed": "node scripts/seed.js",
     "health": "node scripts/healthCheck.js",
     "test": "jest --forceExit --detectOpenHandles",
-    "sbom": "node scripts/generateSBOM.js"
+    "sbom": "node scripts/generateSBOM.js",
+    "security-scan": "node scripts/securityScan.js"
   },
   "keywords": [
     "medical",
