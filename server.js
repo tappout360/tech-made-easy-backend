@@ -168,6 +168,7 @@ app.use('/api/v1/docusign',      require('./routes/docusign'));  // DocuSign e-s
 app.use('/api/v1/purchase-orders', require('./routes/purchaseOrders')); // PO workflow
 app.use('/api/v1/vendors',       require('./routes/vendors'));   // Vendor management
 app.use('/api/v1/analytics',     require('./routes/analytics')); // BI-level reporting
+app.use('/api/v1/webhooks',      require('./routes/webhooks'));  // Zapier/custom integrations
 
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {
