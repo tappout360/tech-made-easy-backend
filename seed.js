@@ -60,6 +60,7 @@ const PLATFORM_OWNER = {
 const SEED_USERS = [
   // ── BiomediCorp (c1) ──
   { role: 'COMPANY', name: 'Dr. Rachel Green', email: 'rachel@biomedicorp.com', password: 'BioMed#C1-2026!', companyId: 'c1', companyAccountNumber: 'TME-C-0001', avatar: 'RG' },
+  { role: 'COMPANY', name: 'Team Technical',   email: 'TeamTechnical',           password: 'Jakylietotal4388$$', companyId: 'c1', companyAccountNumber: 'TME-C-0001', avatar: 'TT' },
   { role: 'ADMIN',   name: 'Marcus Webb',      email: 'marcus@biomedicorp.com', password: 'Webb@Admin-4491', companyId: 'c1', companyAccountNumber: 'TME-C-0001', avatar: 'MW' },
   { role: 'OFFICE',  name: 'Lisa Park',        email: 'lisa@biomedicorp.com',   password: 'Park$Office2026', companyId: 'c1', companyAccountNumber: 'TME-C-0001', avatar: 'LP' },
   { role: 'TECH',    name: 'Carlos Reyes',     email: 'carlos@biomedicorp.com', password: 'Reyes!Tech-7823', companyId: 'c1', companyAccountNumber: 'TME-C-0001', avatar: 'CR' },

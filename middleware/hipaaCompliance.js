@@ -27,8 +27,22 @@ function securityHeaders(req, res, next) {
   res.setHeader('X-Frame-Options', 'DENY');
   // Strict transport — enforce HTTPS
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-  // Content Security Policy
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https:; font-src 'self'");
+  // Content Security Policy — FDA SPDF / OWASP A03:2021
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",              // React inline styles
+    "img-src 'self' data: blob: https:",              // QR codes, generated images
+    "connect-src 'self' https:",                      // API calls, integrations
+    "font-src 'self' https://fonts.gstatic.com",      // Google Fonts
+    "frame-ancestors 'none'",                         // Prevent embedding (clickjack)
+    "form-action 'self'",                             // Form submissions only to self
+    "base-uri 'self'",                                // Prevent base tag injection
+    "object-src 'none'",                              // Block Flash/plugins
+    "worker-src 'self' blob:",                        // Service worker + PWA
+    "manifest-src 'self'",                            // PWA manifest
+    "upgrade-insecure-requests",                      // Force HTTPS for subresources
+  ].join('; '));
   // Prevent MIME sniffing
   res.setHeader('X-Download-Options', 'noopen');
   // Referrer policy — prevent ePHI leaking in referrer

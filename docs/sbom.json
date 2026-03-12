@@ -1,0 +1,134 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:e25566d8-4ce8-4be0-bc95-ada249775d21",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-03-12T19:39:20.210Z",
+    "tools": [
+      {
+        "vendor": "Technical Made Easy",
+        "name": "tme-sbom-generator",
+        "version": "1.0.0"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "name": "tech-made-easy-backend",
+      "version": "1.0.0",
+      "description": "Technical Made Easy — Express/MongoDB API Backend",
+      "author": "Technical Made Easy",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ]
+    },
+    "supplier": {
+      "name": "Technical Made Easy",
+      "url": [
+        "https://www.technical-made-easy.com"
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "bcryptjs",
+      "version": "3.0.3",
+      "scope": "required",
+      "purl": "pkg:npm/bcryptjs@3.0.3",
+      "bom-ref": "pkg:npm/bcryptjs@3.0.3"
+    },
+    {
+      "type": "library",
+      "name": "compression",
+      "version": "1.8.1",
+      "scope": "required",
+      "purl": "pkg:npm/compression@1.8.1",
+      "bom-ref": "pkg:npm/compression@1.8.1"
+    },
+    {
+      "type": "library",
+      "name": "cors",
+      "version": "2.8.6",
+      "scope": "required",
+      "purl": "pkg:npm/cors@2.8.6",
+      "bom-ref": "pkg:npm/cors@2.8.6"
+    },
+    {
+      "type": "library",
+      "name": "dotenv",
+      "version": "17.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/dotenv@17.3.1",
+      "bom-ref": "pkg:npm/dotenv@17.3.1"
+    },
+    {
+      "type": "library",
+      "name": "express",
+      "version": "5.2.1",
+      "scope": "required",
+      "purl": "pkg:npm/express@5.2.1",
+      "bom-ref": "pkg:npm/express@5.2.1"
+    },
+    {
+      "type": "library",
+      "name": "express-rate-limit",
+      "version": "8.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/express-rate-limit@8.3.1",
+      "bom-ref": "pkg:npm/express-rate-limit@8.3.1"
+    },
+    {
+      "type": "library",
+      "name": "jsonwebtoken",
+      "version": "9.0.3",
+      "scope": "required",
+      "purl": "pkg:npm/jsonwebtoken@9.0.3",
+      "bom-ref": "pkg:npm/jsonwebtoken@9.0.3"
+    },
+    {
+      "type": "library",
+      "name": "mongoose",
+      "version": "9.2.2",
+      "scope": "required",
+      "purl": "pkg:npm/mongoose@9.2.2",
+      "bom-ref": "pkg:npm/mongoose@9.2.2"
+    },
+    {
+      "type": "library",
+      "name": "resend",
+      "version": "6.9.3",
+      "scope": "required",
+      "purl": "pkg:npm/resend@6.9.3",
+      "bom-ref": "pkg:npm/resend@6.9.3"
+    },
+    {
+      "type": "library",
+      "name": "stripe",
+      "version": "20.4.1",
+      "scope": "required",
+      "purl": "pkg:npm/stripe@20.4.1",
+      "bom-ref": "pkg:npm/stripe@20.4.1"
+    },
+    {
+      "type": "library",
+      "name": "jest",
+      "version": "30.2.0",
+      "scope": "optional",
+      "purl": "pkg:npm/jest@30.2.0",
+      "bom-ref": "pkg:npm/jest@30.2.0"
+    },
+    {
+      "type": "library",
+      "name": "supertest",
+      "version": "7.2.2",
+      "scope": "optional",
+      "purl": "pkg:npm/supertest@7.2.2",
+      "bom-ref": "pkg:npm/supertest@7.2.2"
+    }
+  ]
+}

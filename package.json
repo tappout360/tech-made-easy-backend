@@ -8,7 +8,8 @@
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js",
     "health": "node scripts/healthCheck.js",
-    "test": "jest --forceExit --detectOpenHandles"
+    "test": "jest --forceExit --detectOpenHandles",
+    "sbom": "node scripts/generateSBOM.js"
   },
   "keywords": [
     "medical",
