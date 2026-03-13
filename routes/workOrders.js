@@ -6,6 +6,7 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { calculateSLA, checkSLABreach, calculateNextRecurrence } = require('../services/slaService');
 const { webhookEvents } = require('../services/webhookService');
+const { emitToCompany, emitToStaff, emitToClient } = require('../services/socketService');
 
 // @route    GET api/v1/work-orders
 // @desc     Get all work orders for a company
@@ -61,6 +62,11 @@ router.post('/', auth, async (req, res) => {
       targetType: 'workOrder',
       targetId: wo._id.toString(),
       details: `Work order ${wo.woNumber} created. Type: ${wo.woType || wo.type}. SLA deadline: ${wo.sla?.deadline?.toISOString() || 'none'}`,
+    });
+
+    // ── Real-time: broadcast new WO to all company users ──
+    emitToCompany(req.user.companyId, 'wo:created', {
+      wo, createdBy: req.user.email || req.user.id,
     });
 
     res.status(201).json(wo);
@@ -163,6 +169,12 @@ router.put('/:id/assign', auth, async (req, res) => {
       details: `${wo.woNumber} assigned to ${tech.name} (${activeCount + 1}/${maxLimit} capacity)`,
     });
 
+    // ── Real-time: notify entire company of assignment ──
+    emitToCompany(req.user.companyId, 'wo:assigned', {
+      wo, techId, techName: tech.name,
+      assignedBy: req.user.email || req.user.id,
+    });
+
     res.json({
       success: true,
       sound: 'dispatch',
@@ -202,6 +214,12 @@ router.put('/:id/status', auth, async (req, res) => {
       details: `${wo.woNumber} status → ${status || wo.status} / ${subStatus || wo.subStatus}`,
     });
 
+    // ── Real-time: broadcast status change ──
+    emitToCompany(req.user.companyId, 'wo:status', {
+      wo, oldStatus: req.body._oldStatus, newStatus: status || wo.status,
+      changedBy: req.user.email || req.user.id,
+    });
+
     res.json(wo);
   } catch (err) {
     console.error(err.message);
@@ -223,6 +241,12 @@ router.put('/:id', auth, async (req, res) => {
       { new: true }
     );
     if (!wo) return res.status(404).json({ msg: 'Work order not found' });
+
+    // ── Real-time: broadcast general WO update ──
+    emitToCompany(req.user.companyId, 'wo:updated', {
+      wo, updatedBy: req.user.email || req.user.id,
+    });
+
     res.json(wo);
   } catch (err) {
     console.error(err.message);
@@ -741,6 +765,12 @@ router.put('/bulk/status', auth, async (req, res) => {
       targetType: 'workOrder',
       targetId: woIds.join(','),
       details: `Bulk update ${result.modifiedCount} WOs: ${JSON.stringify(update)}`,
+    });
+
+    // ── Real-time: broadcast bulk update ──
+    emitToCompany(req.user.companyId, 'wo:bulk-updated', {
+      woIds, update, modifiedCount: result.modifiedCount,
+      updatedBy: req.user.email || req.user.id,
     });
 
     res.json({ success: true, modifiedCount: result.modifiedCount });
