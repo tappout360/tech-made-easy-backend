@@ -170,6 +170,7 @@ app.use('/api/v1/vendors',       require('./routes/vendors'));   // Vendor manag
 app.use('/api/v1/analytics',     require('./routes/analytics')); // BI-level reporting
 app.use('/api/v1/webhooks',      require('./routes/webhooks'));  // Zapier/custom integrations
 app.use('/api/v1/epic',          require('./routes/epic'));      // Epic EHR FHIR R4
+app.use('/api/v1/p21',           require('./routes/p21'));       // P21/Epicor ERP
 app.use('/api/v1/import',        require('./routes/import'));    // Bulk data import
 
 // ── Global Error Handler ──
