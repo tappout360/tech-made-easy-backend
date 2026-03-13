@@ -8,8 +8,12 @@ const {
   securityHeaders, enforceHTTPS, sanitizeInput, sanitizeResponse,
   logPHIAccess, initHashChain,
 } = require('./middleware/hipaaCompliance');
+const { initSentry, sentryErrorHandler } = require('./services/sentryInit');
 
 const app = express();
+
+// ── Sentry Error Monitoring (must be before other middleware) ──
+initSentry(app);
 const PORT = process.env.PORT || 5000;
 // Trust proxy if we are behind a reverse proxy (like Render/Railway/Heroku/Vercel)
 app.set('trust proxy', 1);
@@ -116,7 +120,9 @@ app.get('/api/v1/public-health', (req, res) => {
     },
     demo: {
       frontend: 'https://technical-made-easy.vercel.app',
-      credentials: { email: 'demo@technicalmadeeasy.com', password: 'Demo123!', note: 'Read-only demo account' },
+      credentials: process.env.NODE_ENV !== 'production'
+        ? { email: 'demo@technicalmadeeasy.com', password: 'Demo123!', note: 'Read-only demo account' }
+        : { note: 'Contact sales@technical-made-easy.com for demo access' },
       analyticsEndpoint: '/api/v1/analytics/capabilities',
     },
     security: {
@@ -173,6 +179,9 @@ app.use('/api/v1/epic',          require('./routes/epic'));      // Epic EHR FHI
 app.use('/api/v1/p21',           require('./routes/p21'));       // P21/Epicor ERP
 app.use('/api/v1/import',        require('./routes/import'));    // Bulk data import
 
+// ── Sentry Error Handler (must be before global error handler) ──
+app.use(sentryErrorHandler());
+
 // ── Global Error Handler ──
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err.stack);
@@ -189,12 +198,18 @@ mongoose.connect(process.env.MONGO_URI)
     console.log('✅ MongoDB Connected');
     await initHashChain(); // HIPAA §164.312(c)(1) — Resume audit log hash chain
     initSocket(server);    // Socket.io with per-company rooms
+
+    // ── Scheduled Reports (cron jobs for automated email delivery) ──
+    const { initScheduledReports } = require('./services/scheduledReports');
+    initScheduledReports();
+
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`   Health: http://localhost:${PORT}/api/v1/health`);
       console.log(`   Demo:   http://localhost:${PORT}/api/v1/public-health`);
       console.log(`   🔒 HIPAA/FDA compliance middleware active`);
       console.log(`   ⚡ Socket.io real-time engine active`);
+      console.log(`   📊 Scheduled reports engine active`);
     });
   })
   .catch(err => {

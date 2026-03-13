@@ -13,6 +13,16 @@ const jwt = require('jsonwebtoken');
 // Set test JWT secret
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-12345';
 
+// ── Mock socketService (socket.io auto-mocked via __mocks__/socket.io.js) ──
+jest.mock('../services/socketService', () => ({
+  initSocket: jest.fn(),
+  getIO: jest.fn().mockReturnValue({
+    to: jest.fn().mockReturnThis(),
+    emit: jest.fn(),
+  }),
+}));
+
+
 // ── Mock Mongoose Models ──
 jest.mock('../models/WorkOrder', () => {
   const mockWOs = [];
