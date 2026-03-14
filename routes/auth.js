@@ -198,7 +198,7 @@ router.post('/send-mfa', async (req, res) => {
     const result = await sendMfaEmailService(email, code);
 
     if (!result.success) {
-      console.warn(`[MFA] Email send failed for ${email}:`, result.error);
+      console.warn('[MFA] Email send failed for [REDACTED]:', result.error);
       return res.status(500).json({ msg: 'Failed to send MFA email', error: result.error });
     }
 
@@ -610,7 +610,7 @@ async function sendPasswordResetEmail(email, name, resetUrl) {
   `;
   const result = await sendNotification(email, '🔐 Password Reset — Technical Made Easy', html);
   if (!result.success) {
-    console.log(`📧 PASSWORD RESET EMAIL (fallback):\n  To: ${email}\n  Name: ${name}\n  Link: ${resetUrl}`);
+    console.log('[RESET] Password reset email fallback triggered (email service unavailable)');
   }
 }
 // ────────────────────────────────────────────────────────────────
