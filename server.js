@@ -9,6 +9,7 @@ const {
   logPHIAccess, initHashChain,
 } = require('./middleware/hipaaCompliance');
 const { initSentry, sentryErrorHandler } = require('./services/sentryInit');
+const { responseLogger, rateLimitAlertHandler, initMongooseMonitoring } = require('./middleware/monitoringMiddleware');
 
 const app = express();
 
@@ -25,6 +26,7 @@ const authLimiter = rateLimit({
   message: { msg: 'Too many authentication attempts. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitAlertHandler,  // Sentry alert on 429
 });
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -32,6 +34,7 @@ const apiLimiter = rateLimit({
   message: { msg: 'Rate limit exceeded. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitAlertHandler,  // Sentry alert on 429
 });
 
 // ── HIPAA Security Middleware (applied FIRST) ──
@@ -68,6 +71,7 @@ app.use(sanitizeResponse);           // §164.312(a) — Strip secrets from all 
 app.use('/api/v1/auth', authLimiter);      // Strict rate limit on auth
 app.use('/api/v1', apiLimiter);            // General rate limit on all API
 app.use(logPHIAccess);                     // §164.312(b) — PHI access audit logging
+app.use(responseLogger);                   // 5xx + slow response monitoring
 
 // ── API Response Caching Headers ──
 // Cache GET responses for 30s (reduces redundant DB queries under load)
@@ -196,6 +200,7 @@ const server = http.createServer(app);
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB Connected');
+    initMongooseMonitoring(mongoose);  // Sentry alerts on disconnect/error
     await initHashChain(); // HIPAA §164.312(c)(1) — Resume audit log hash chain
     initSocket(server);    // Socket.io with per-company rooms
 
