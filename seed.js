@@ -44,7 +44,7 @@ function generateEmergencyCode() {
 const PLATFORM_OWNER = {
   role: 'PLATFORM_OWNER',
   name: 'Jason Mounts',
-  email: 'Tappout360',
+  email: 'Technicalmadeeasysuport@gmail.com',
   password: 'JakylieTechnical$$',
   companyId: null,
   accountNumber: null,
@@ -139,7 +139,7 @@ async function seed() {
     console.log('║  be recovered. Store in a secure location.           ║');
     console.log('║                                                      ║');
     console.log('║  Use: POST /api/v1/platform/emergency-access         ║');
-    console.log('║  Body: { "email": "Tappout360",                      ║');
+    console.log('║  Body: { "email": "Technicalmadeeasysuport@gmail.com",║');
     console.log('║          "emergencyCode": "<this code>" }            ║');
     console.log('╚══════════════════════════════════════════════════════╝');
     console.log('');
@@ -187,7 +187,7 @@ async function seed() {
     console.log(`  Companies:           ${companies.length} (${companies.join(', ')})`);
     console.log('');
     console.log('  🔐 Login credentials:');
-    console.log('     Email:    Tappout360');
+    console.log('     Email:    Technicalmadeeasysuport@gmail.com');
     console.log('     Password: JakylieTechnical$$');
     console.log('     Role:     PLATFORM_OWNER (Level 0)');
     console.log('');

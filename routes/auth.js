@@ -19,6 +19,10 @@ const {
 router.post('/login', checkLoginLockout, async (req, res) => {
   const { email, password, deviceType } = req.body;
 
+  if (!email || !password) {
+    return res.status(400).json({ msg: 'Email and password are required' });
+  }
+
   try {
     let user = await User.findOne({ email: { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
 

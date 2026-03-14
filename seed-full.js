@@ -50,7 +50,7 @@ async function seed() {
 
   // ── 1. Ensure Users exist ──
   console.log('👥 Checking users...');
-  const ownerUser = await User.findOne({ email: 'Tappout360' });
+  const ownerUser = await User.findOne({ email: 'Technicalmadeeasysuport@gmail.com' });
   if (!ownerUser) {
     console.log('   ⚠️  No PLATFORM_OWNER found — run `node seed.js` first!');
     await mongoose.disconnect();
@@ -463,7 +463,7 @@ async function seed() {
   console.log('  ┌──────────────────┬──────────────────────────────┬──────────────────────┐');
   console.log('  │ Role             │ Email                        │ Password             │');
   console.log('  ├──────────────────┼──────────────────────────────┼──────────────────────┤');
-  console.log('  │ Platform Owner   │ Tappout360                   │ Technical2026!Admin   │');
+  console.log('  │ Platform Owner   │ Technicalmadeeasysuport@gmail.com │ Technical2026!Admin   │');
   console.log('  │ Company Admin    │ rachel@biomedicorp.com       │ BioMed#C1-2026!      │');
   console.log('  │ Admin            │ marcus@biomedicorp.com       │ Webb@Admin-4491      │');
   console.log('  │ Office Staff     │ lisa@biomedicorp.com         │ Park$Office2026      │');

@@ -45,12 +45,12 @@ async function run() {
   const h = await req('GET', '/health');
   log('9.1', 'Health Check', h.status === 200 && h.data.mongo === 'connected', `mongo=${h.data.mongo}`);
 
-  const login = await req('POST', '/auth/login', { email: 'Tappout360', password: 'JakylieTechnical$$' });
+  const login = await req('POST', '/auth/login', { email: 'Technicalmadeeasysuport@gmail.com', password: 'JakylieTechnical$$' });
   const loginOk = login.status === 200 && login.data.token;
   token = login.data.token || '';
   log('9.2', 'Login PLATFORM_OWNER', loginOk, `role=${login.data.user?.role}`);
 
-  const bad = await req('POST', '/auth/login', { email: 'Tappout360', password: 'WrongPass!' });
+  const bad = await req('POST', '/auth/login', { email: 'Technicalmadeeasysuport@gmail.com', password: 'WrongPass!' });
   log('1.2', 'Wrong password rejected', bad.status === 400 || bad.status === 401);
 
   const forgot = await req('POST', '/auth/forgot-password', { email: 'nobody@test.com' });
@@ -59,7 +59,7 @@ async function run() {
   const resetBad = await req('POST', '/auth/reset-password', { token: 'bad', newPassword: 'Abcdef12345!@' });
   log('9.8', 'Reset Password (bad token)', resetBad.status === 400 || resetBad.status === 401);
 
-  const emergency = await req('POST', '/platform/emergency-access', { email: 'Tappout360', emergencyCode: 'WRONG' });
+  const emergency = await req('POST', '/platform/emergency-access', { email: 'Technicalmadeeasysuport@gmail.com', emergencyCode: 'WRONG' });
   log('1.10', 'Emergency Access (bad code)', emergency.status === 401);
 
   // ── SECTION 2: Data Endpoints ──
